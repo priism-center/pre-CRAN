@@ -5,12 +5,6 @@ require(arm)
 require(foreign)
 require(plyr)
 library(reshape)
-#NOTES:
-#    Attempt to clean up code on Oct. 5, 2015
-#
-# 1. Dropping bootstrap in this version.
-# 2. Implement lmer in parallel to lme to allow resampling
-# 3: wrapper for it all - single call, lots of params.
 
 
 #IMPLEMENTATION:
@@ -43,7 +37,7 @@ library(reshape)
 #    group = ~id
 #    data: the dataframe
 
-#R funtion to mimic one prior in STAN.
+#R function to mimic a prior used in alternative approach.
 my_rbeta <-function(n,a,b,scale) {
     scale*rbeta(n,a,b)*sample(c(1,-1),n,replace=T)
 }
@@ -58,7 +52,7 @@ lmExtract <- function(lmObject,treatName) {
 }
 
 lmeExtract <- function(lmeObject,treatName,treatGpName) {
-    #works on lme or lmer obj
+    #works on lme or lmer obj (deprecated: now only use lmer objects)
     #extract fixef of treatment & variances of random intercept model & ln(vcv) of those:
     #fixef:
     tau <- fixef(lmeObject)[c(treatName,treatGpName)]
@@ -87,7 +81,7 @@ scaleAll <- function(x) { #will try to scale factors whenever possible
 
 processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
     
-    #group mean centering, stdzing, etc.  Everything you meed to do to put the data in form corresp. to the DGP
+    #group mean centering, stdzing, etc.  Everything you meed to do to put the data in form corresp. to the DGP as described in the ObsStudies paper
 
     #helper function; inelegant, but gets the job done
     apply.tapply <- function(m,MARGIN,INDEX,FUN,...){
@@ -141,7 +135,6 @@ processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
 #helper funct:
 isErrClass <- function(x) {class(x)=="try-error"}
 
-#consider removing all internal bootstrap features, incl. the need to reorder, and any lme (not lmer) calls.  
 runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pred = ~W, group = ~id, data, center=T, stdz=T) {
     
     # all formula components are given using formula notation
@@ -152,7 +145,7 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     nRecs <- dim(data)[1]
     IDname <- as.character(group)[2]
     id <- data[,IDname]
-    #it is important (really just for bootstrap, but we will do it to be consistent) that all id's appear together.  So we sort by id here:
+    #it is important (really just if using a bootstrap, but we will do it to be consistent) that all id's appear together.  So we sort by id here:
     ord <- order(id)
     data <- data[ord,] #everything needs to be reordered
     id <- data[,IDname] #refresh this value
@@ -166,14 +159,11 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
 
     Yname <- as.character(outcome)[2]
     Yfmla <-as.formula(paste(Yname,"~.",sep=""))
-###    Yfmla1 <-as.formula(paste(Yname,"~1",sep=""))
     #for lmer:
     Yfmla.lmer <-as.formula(paste(Yname,"~.+(1|idNew)",sep=""))
     Yfmla1.lmer <-as.formula(paste(Yname,"~1+(1|idNew)",sep=""))
 
     Zname <- as.character(treatment)[2]
-###    Zfmla <-as.formula(paste(Zname,"~.",sep=""))
-###    Zfmla1 <-as.formula(paste(Zname,"~1",sep=""))
     #for lmer:
     Zfmla.lmer <-as.formula(paste(Zname,"~.+(1|idNew)",sep=""))
     Zfmla1.lmer <-as.formula(paste(Zname,"~1+(1|idNew)",sep=""))
@@ -207,7 +197,7 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     #on Y~Z and Y~Z+Xctrd+Xmean+W, run OLS.
     #for all group-varying preds: GMC everything (perhaps at the level of the design matrix for ease)
     #so matrix is [Y,Zctrd,Zmean,Xctrd,Xmean,W], where W are group const
-    #assumes ONE X, potentially NO Ws...
+    #assumes at least ONE X, potentially NO Ws...
  
     pd <- processData(X0,Z0,W0,Wfmla=level2.pred,YZdata0, IDname,idNew,center,stdz)
     X<-pd$X
@@ -260,7 +250,8 @@ makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
        gamm.z <- t(as.matrix(fe_mlm1.z[idxW,drop=F]))
        beta.z <- t(as.matrix(fe_mlm1.z[idxX,drop=F]))
    }
-   #this is based on biased parms, but worth doing for comparison purposes (and bounds):
+   
+   #next bit is based on biased parms, but worth doing for comparison purposes (and bounds):
    
    nmsY <- names(fe_mlm1.y)
    if (is.null(nmsY)) nmsY <- dimnames(fe_mlm1.y)[[2]] #handles 2 cases
@@ -284,14 +275,6 @@ makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
    gy.vw.gy<-gamm.y%*%varW%*%t(gamm.y)
    by.vx.bz<-beta.y%*%varX%*%t(beta.z)
    by.vx.by<-beta.y%*%varX%*%t(beta.y)
-   ## if (dim(fe_mlm1.z)[1]>1) { #signals passing a sim result in - force a scalar per iteration
-   ##   gz.vw.gz<-diag(gz.vw.gz)
-   ##   bz.vx.bz<-diag(bz.vx.bz)
-   ##   gy.vw.gz<-diag(gy.vw.gz)
-   ##   gy.vw.gy<-diag(gy.vw.gy)
-   ##   by.vx.bz<-diag(by.vx.bz)
-   ##   by.vx.by<-diag(by.vx.by)
-   ##}
    list(varX=varX,varW=varW,gz.vw.gz=gz.vw.gz, bz.vx.bz=bz.vx.bz, gy.vw.gz=gy.vw.gz, gy.vw.gy=gy.vw.gy, by.vx.bz=by.vx.bz, by.vx.by=by.vx.by)
 }
 
@@ -341,10 +324,6 @@ extractParams <- function(runModelRslt) {
      tau1.b<-extr1$tau[2]
 
      within.bias.diff <- tau0.w-tau1.w  # based on lme, fixef
-     
-     #tau0.b<-fixef(runModelRslt$mlm0.y)[runModelRslt$treatment.gp]
-     #tau1.b<-fixef(runModelRslt$mlm1.y)[runModelRslt$treatment.gp]
-     
      between.bias.diff <- tau0.b-tau1.b  #based on lme
      
      #OLS
@@ -358,7 +337,6 @@ extractParams <- function(runModelRslt) {
      ols.bias.diff <- tau0.ols - tau1.ols
      
      #####
-     #FIX:
      #varcorr:
      extr.v0 <- lmeExtract.varcomp(runModelRslt$mlm0.z)
      sigma.sq.within.0 <- extr.v0$vcomps[2]
@@ -386,11 +364,9 @@ extractParams <- function(runModelRslt) {
 makeBnds <- function(paramObj,param='gamma') {
     
     #extract from paramObj - yields a function of tau that sets a bound on feasible eta;
-    #the bounds=F option will let us look at just the one point that eta will be if bias is low or non-existent.
 
     gz.vw.gz <- paramObj$gz.vw.gz
     gy.vw.gy <- paramObj$gy.vw.gy
-    #    sigma.sq.between.y.0 <- paramObj$sigma.sq.between.y.0
     c.b.y <- paramObj$sds.y.ucm$sd.alpha.y.ucm
     bz.vx.bz <- paramObj$bz.vx.bz
     by.vx.by <- paramObj$by.vx.by
@@ -440,7 +416,7 @@ makeLinEqMat <- function(c_w0,c_w1,c_b0,c_b1,idx=4,gpSize=Inf) {
     m
 }
 
-recover <- function(paramObj,varyParm="gamma",bnd.f,nParms=201,tau.max=2,gpSize=Inf,debug=F) {
+recover <- function(paramObj,varyParm="gamma",bnd.f,nParms=201,tau.max=2,gpSize=Inf) {
     
     #solves a system of equations for 3 out of 4 of (zeta_1, delta_1,byxbz,gywgz) in terms of the 4th, based on values for sigs and differences in bias for 3 estimation methods
     #sigs: 2x2 matrix rows are (c.w0,c.b0)
@@ -468,19 +444,18 @@ recover <- function(paramObj,varyParm="gamma",bnd.f,nParms=201,tau.max=2,gpSize=
     len <- length(parmRange)
     r <- matrix(NA,len,4) # result
     delts <- c(deltaBiases,0) #placeholder for 3 deltas and one open param
-    #needs error trapping
+    #error trapping
     if (class(try(condNum<-kappa(m,exact=T)))=="try-error") print("unable to compute condition number\n")
     mInv <- solve(m)
     for (i in 1:len) {
         delts[4] <- parmRange[i] #assume we know the omitted param.
         r[i,] <- mInv%*%delts #solve for 3 other params, given components and omitted param.
     }
-    if (debug) browser()
     dimnames(r)[[2]] <- parms
     #zetaDeltaMat are the zetas and deltas consistent with the data; parmRange gives the open param for the given row of zds
     #ALT cond num:
     ##m <- makeLinEqMat(sigs[1,1],sigs[2,1],sigs[1,2],sigs[2,2],idx=3,gpSize)
-    #if (class(try(condNum<-kappa(m,exact=T)))=="try-error") print("uanble to compute condition number\n")
+    #if (class(try(condNum<-kappa(m,exact=T)))=="try-error") print("unable to compute condition number\n")
     list(zetaDeltaMat=r,plausible.taus=scaleFactor*tau.max,parmRange=parmRange,condNum=condNum)
 }
 
@@ -501,7 +476,7 @@ correctedTau.o <- function(tau.o,zeta,delta,cW,cB) {
 }
 
 
-##ACTION: change size of labels in this plot... is CEX= enough???
+##ACTION: change size of labels in this plot... (is CEX= enough?)
 zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol=8,targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, autoAdjDelta=F, autoAdjProbs=c(.1,.9),zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,...) {
     #the function that plots "danger zones"
     #use targetVals to show where 'upper bd' might be or where eta wd be if we had unbiased Y eqn.
@@ -542,7 +517,7 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
     } else {
         delta <- seq(min(delta1),max(delta1),length=N) #default
     }
-    if (!is.null(deltaRange)) { #override everything
+    if (!is.null(deltaRange)) { #override
         delta <- seq(deltaRange[1],deltaRange[2],length=N)
     }
     bdiff <-outer(zeta,delta,FUN="olsMwin",cW=cW,cB=cB)*zInflator
@@ -598,8 +573,8 @@ rm.na <- function(x) x[!is.na(x)]
 
 bsConfParmsSim <- function(modelRun,nSims=100,nTarg=201,conf=.95,bnd.f,varyParm="gamma",gpSize,tau.max=1,debug=F,allowVarBool=rep(T,7),lines=T) {
     
-    #use s.e. and vcvs in pObj to resample key confouding params
-    if (class(modelRun$mlm0.z)!="lmerMod") stop ("Rerun runModels using lmeSwitch=F\n")
+    #use s.e. and vcvs in pObj to resample key confounding params
+    if (class(modelRun$mlm0.z)!="lmerMod") stop ("Rerun runModels using lmeSwitch=F\n") #deprecated - all models should now be run with lmer, not lme...
     #extract varcomps:
     mlm1.z.sim<-sim(modelRun$mlm1.z,nSims)
     c_b1s <- apply(mlm1.z.sim@ranef[[1]][,,1],1,var)
@@ -827,42 +802,5 @@ scaledColors <- function(x,colorScheme=cm.colors,nPerSide,rev=T) {
     ticks[ticks>max(x)] <- NA #take out
     index <- sort(unique(idx)) #these are used
     return(list(cols=pal[idx],ticks=ticks,palette=pal[index],index=index))
-}
-
-
-if (F) {
- vcs <- lmeExtract.varcomp(mlm1.z)
- cat("vcomps=",vcs$vcomps,"\n")
- omega <- vcs$vcomps[1]*outer(idNew,idNew,"==")
- diag(omega) <- diag(omega)+vcs$vcomps[2]
- omegaInv <- solve(omega)
- 
- ZZpInvZp <- Znew[,1]%*%omegaInv/as.numeric(Znew[,1]%*%omegaInv%*%Znew[,1])
- ZZpInvZp.mn <- Znew[,2]%*%omegaInv/as.numeric(Znew[,2]%*%omegaInv%*%Znew[,2])  #assumes Z-Zbar, Zbar in design...
- ZZpInvZp.ols <- as.numeric(Z/as.numeric(t(Z)%*%Z))
- 
- #ZZpInvZp=ZZpInvZp,ZZpInvZp.mn=ZZpInvZp.mn,ZZpInvZp.ols=ZZpInvZp.ols
- 
- mlm0.z.sim<-sim(modelRun$mlm0.z,nSims)
- c_b0s <- apply(mlm0.z.sim@ranef[[1]][,,1],1,var)
- c_w0s <- mlm0.z.sim@sigma^2
- 
- mlm0.y.sim<-sim(modelRun$mlm0.y,nSims)
- tau0.w <- mlm0.y.sim@fixef[,treat.varname]
- tau0.b <- mlm0.y.sim@fixef[,treat.gpname]
-
- lm0.y.sim<-sim(modelRun$ols0.y,nSims)
- tau0.ols <- lm0.y.sim@coef[,treat.varname]
- 
- #fix biases too:
- cat(dim(modelRun$ZZpInvZp),'\n')
- cat(dim(modelRun$ZZpInvZp.mn),'\n')
- cat(dim(wCoefs),'\n')
- mm.w<-model.matrix(modelRun$Xfmla,modelRun$newData)[,-1]
- mm.b<-model.matrix(modelRun$Wfmla,modelRun$newData)[,-1]
- tau0.w <- tau1.w + as.numeric(modelRun$ZZpInvZp%*%mm.w%*%t(xCoefs))
- tau0.b <- tau1.b + as.numeric(modelRun$ZZpInvZp.mn%*%mm.b%*%t(wCoefs))
- tau0.ols <- tau1.ols + as.numeric(modelRun$ZZpInvZp.ols%*%cbind(mm.w,mm.b)%*%t(cbind(xCoefs,wCoefs)))
- 
 }
 

@@ -6,6 +6,12 @@
 # X: sex (165),hours of homework (167), word knowledge raw score (247)
 # W: Z.groupmean,X.groupmean,size of the school (25,26),type of community served (18)
 
+# depends:
+#  biasAmpR_v2r2.R
+#
+# data source:
+#  IEA.RData (preprocessed dataset)
+
 library(foreign)
 library(dplyr)
 library(plyr)
@@ -15,31 +21,14 @@ library(lme4)
 library(arm)
 library(lattice)
 
-setwd("/Users/mscott/Dropbox/RA for Prof. Hill - Jeremy Yang/Bias Amp/")
+#read support fns
 if (!exists('runModels')) source("biasAmpR_v2r2.R")
-
-#source('~/Dropbox/RA for Prof. Hill - Jeremy Yang/reading comp/reading_3pop.R', chdir = TRUE)
-if (!exists('hungary')) {
-  source("../SSS70/reading comp/reading_3pop.R",chdir=T)
-  save(scotland,belgium.flemish,belgium.french,chile,england,finland,hungary,india,iran,israel,italy,newzealand.2,sweden,usa,finland,netherlands,file="Data Runs/IEA.RData")
-}
+#read data
+if (!exists('scotland')) load("ObsStudies_IEA.RData")
 
 # run lmer and lm models
-#country <- india # choose a country
 
-#check australia.2  & germany france.3 japan thailand- all NA on outcome.
-
-#cnames <-c(scotland","belgium.flemish","belgium.french","chile","england","finland","hungary","india","iran","israel","italy","newzealand.2","sweden","usa","finland","netherlands")
-#cnames <-c("hungary","scotland","usa")
-##cnames <-c("hungary","india","iran","israel","italy","newzealand.2","sweden","usa","finland","netherlands")
-
-#cnames <-c("usa")
-
-#cnames <-c("scotland")
-#,"scotland2")
-#cnames <-c("iran")
-
-#cnames <-c("netherlands")
+#choice of country names
 cnames <-c("scotland","sweden","italy")
 
 
@@ -83,21 +72,22 @@ for (ii in 1:length(cnames)) {
   fmlaW <- as.formula(fmlaW.str)
 
 
-  #treatmen
+  #set treatment
   fmlaZ <- ~num_books
   fmlaY <- ~score
 
-##if (cnames[ii]=="finland") browser()
   #fit models
   mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
-  #  mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat,bootstrap=0,boottype=3,bootMult=1,lmeSwitch=F)
   #extract variance comps & some bias diffs
   pObj <- extractParams(mdl.fit)
-  #for paper:
+  #for ObsStudies paper:
   print(cnames[ii])
   print(summary(mdl.fit$mlm1.y))
   print(summary(mdl.fit$ols1.y))
-  print(round(rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs),2))
+  print(paste("Table 1 for: ",cnames[ii]))
+  rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
+  dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
+  print(round(rsltTab1,2))
   print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
   print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$gz.vw.gz)),3),collapse=", "),sep=" "))
@@ -121,8 +111,6 @@ for (ii in 1:length(cnames)) {
   nu.at.zeta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,1])),paramIdx]
   nu.at.delta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,2])),paramIdx]
   
-  ##print(nu.at.zeta.0,digits=2)
-  
   #reduce range if info from Beta warrants it
   nu.g.min <- min(recovParms3$zetaDeltaMat[,4])
   nu.g.max <- max(recovParms3$zetaDeltaMat[,4])
@@ -132,25 +120,14 @@ for (ii in 1:length(cnames)) {
   recovParms$parmRange <- recovParms$parmRange[b.in.range]
   recovParms$plausible.taus <- recovParms$plausible.taus[b.in.range]
 
-##rslt0 <- sampConfParms(pObj,500,101,bnd.f,nPerSchool,corr=c(.8,.2,.2),tau.max=2,trim=0)$parms # grabbed cors from bs samps.
 
-#rslt0 <- bsConfParms(mdl.fit$bsSamps,101,bnd.f,nPerSchool,tau.max=2,trim=0)$parms
-
-##confPts <- cbind(as.vector(rslt0[,,2]),as.vector(rslt0[,,1]))
-#
-##plot(zdPlot(recovParms$zetaDeltaMat[,1],recovParms$zetaDeltaMat[,2],recovParms$parmRange,rescaleParms=rescaleParms,confPts=confPts,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2]))
-#
-
-#browser()
-
-lcex <- 3 #was 2+ii/3
+  #plot params set for .png inlcuded in LaTeX file; adjust as nec.
+  lcex <- 3
   pcex <- 2
   png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
   tvals <- c(gamma.at.beta,pObj$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
   tpch <- c(0,4,1,3)
   taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
-  #sims <- bsConfParms(mdl.fit,100,201,0.95,bnd.f,"gamma",nPerSchool)
-  #confPts <- cbind(as.vector(sims[,,2]),as.vector(sims[,,1]))
   confPts <- NULL #default
   if (!is.null(mdl.fit$bsSamps)) {
       if (dim(mdl.fit$bsSamps)[1]!=0) {
