@@ -4,27 +4,36 @@ run lmer and lm models
 This is a script that produces model results (but not all plots) for the
 ObsStudies paper.
 
+    #chose country names
+    #each name corresponds to a dataframe object in ObsStudies_IEA.RData 
+
+    cnames <-c("scotland","sweden","italy")
+
 Data Setup first
 ----------------
 
+Common formulas set up
+----------------------
+
 Then run models, all in a loop one for each country selected.
 -------------------------------------------------------------
-
-    #choice of country names
-    cnames <-c("scotland","sweden","italy")
 
     set.seed(12341)
     for (ii in 1:length(cnames)) {
         
       country <- get(cnames[ii])
 
-      country$pop <- log(country$pop)
+      #BETWEEN ##### could be a class to a 'helper' function called IEApreprocess that takes logs, removes NAs, etc.
+      ################################
+      country$pop <- log(country$pop)  #transform towards symmetry
       country$pop[is.infinite(country$pop)] <- NA
+      
       country$type <- factor(country$type)
-      #remove nas:
+      
+      #remove NAs:
       cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country) #should remove NAs
 
-      #fix type factors:
+      #set up indiactor vars for factors:
       cdat$type0 <- 1*(cdat$type==0)
       cdat$type1 <- 1*(cdat$type==1)
       cdat$type2 <- 1*(cdat$type==2)
@@ -35,9 +44,11 @@ Then run models, all in a loop one for each country selected.
 
       nPerSchool <- mean(table(cdat$school))
       nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # geo-mean
-
-      #model spec. 
+      ##################################
       
+      ## Prepare the formulas for the model fit calls.  -- make a helper fnc.
+      ## 
+      ##################################
       #indiv preds
       fmlaX <- ~sex + word_knowl + homework
       #group var preds
@@ -53,13 +64,18 @@ Then run models, all in a loop one for each country selected.
           }
       }
       fmlaW <- as.formula(fmlaW.str)
-
       #set treatment
       fmlaZ <- ~num_books
       fmlaY <- ~score
-
+      ####################################
+      
+      
       #fit models
       mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
+      
+      ## Make a helper function out of below that's a PRINT method, basically, taking mdl.fit as the main argument.
+      ##
+      ################################
       #extract variance comps & some bias diffs
       pObj <- extractParams(mdl.fit)
       #for ObsStudies paper:
@@ -73,20 +89,29 @@ Then run models, all in a loop one for each country selected.
       print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
       print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
       print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$gz.vw.gz)),3),collapse=", "),sep=" "))
+      ####################################
 
+
+      ## helper function for the condition number of matrix used in the model - call, print, and move on.
+      ## possible that we need some of the params generated here going forward.  Check.
+      ##
+      ################################
       parms <- c("zeta","delta","beta","gamma")
       paramIdx <- 4
       paramCh <- parms[paramIdx]
+      
       rescaleParms <- c(1,1)
       bnd.f <- makeBnds(pObj,param=paramCh)
 
-      recovParms4<-recovParms<-recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1,gpSize=nPerSchool)
+      recovParms4 <- recovParms <- recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1, gpSize=nPerSchool)  # corresponds to the bound when 'gamma' (parm 4) is the open param.
 
       cat("cond num=",recovParms$condNum,"\n")
+      ####################################
 
       #FIND THE RIGHT 4th Param from the 3rd param beta-based value for eta...
-      recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)
+      recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)  # corresponds to the bound when 'beta' (parm 3) is the open param.
       
+      #there is a gamma corresp. to this beta
       gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$by.vx.bz)),4]
       
       #get other 'target' values:
@@ -111,23 +136,9 @@ Then run models, all in a loop one for each country selected.
       tpch <- c(0,4,1,3)
       taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
       confPts <- NULL #default
-      if (!is.null(mdl.fit$bsSamps)) {
-          if (dim(mdl.fit$bsSamps)[1]!=0) {
-             rslt0 <- bsConfParms(mdl.fit$bsSamps,201,bnd.f,nPerSchool,tau.max=1,trim=0.025)$parms
-             confPts <- cbind(as.vector(rslt0[,,2]),as.vector(rslt0[,,1]))
-          }
-      }
       
-      rslt0 <- bsConfParmsSim(mdl.fit,nSims=250,nTarg=201,bnd.f=bnd.f,gpSize=nPerSchool,tau.max=1,debug=F,allowVarBool=c(T,T,T,rep(T,4)),line=F)
-      confPts <- cbind(as.vector(rslt0$lines[,,2]),as.vector(rslt0$lines[,,1]))
-      
-      gamma.at.beta025 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.025)))),4]
-      gamma.at.beta975 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.975)))),4]
-
       print("target for nu(by.vx.bz): ")
       print(nu.at.zeta.0)
-      print("range for nu(by.vx.bz): ")
-      print(c(gamma.at.beta025, gamma.at.beta,gamma.at.beta975),digits=3)
       
       plot(zdPlot(recovParms$zetaDeltaMat[,1],recovParms$zetaDeltaMat[,2],recovParms$parmRange,rescaleParms=rescaleParms,confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
       dev.off()
@@ -171,36 +182,12 @@ Then run models, all in a loop one for each country selected.
     ## type2          0.061497   0.037415    1.64
     ## type3         -0.016690   0.026658   -0.63
     ## type4          0.048688   0.027656    1.76
+
     ## 
-    ## Correlation of Fixed Effects:
-    ##             (Intr) nm_bks nm_bk. sex0   wrd_kn homwrk sx0.mn wrd_k. hmwrk.
-    ## num_books    0.000                                                        
-    ## num_boks.mn  0.018  0.000                                                 
-    ## sex0         0.000  0.004  0.000                                          
-    ## word_knowl   0.000 -0.190  0.000  0.047                                   
-    ## homework     0.000  0.020  0.000 -0.036  0.043                            
-    ## sex0.mn     -0.010  0.000 -0.019  0.000  0.000  0.000                     
-    ## wrd_knwl.mn -0.002  0.000 -0.374  0.000  0.000  0.000 -0.022              
-    ## homework.mn -0.006  0.000 -0.128  0.000  0.000  0.000 -0.069 -0.018       
-    ## pop          0.156  0.000  0.114  0.000  0.000  0.000  0.062 -0.063 -0.048
-    ## type1        0.007  0.000  0.133  0.000  0.000  0.000 -0.137 -0.143  0.032
-    ## type2       -0.001  0.000  0.250  0.000  0.000  0.000 -0.131 -0.092  0.105
-    ## type3       -0.011  0.000 -0.094  0.000  0.000  0.000  0.005  0.123 -0.047
-    ## type4       -0.019  0.000  0.169  0.000  0.000  0.000 -0.006 -0.085  0.026
-    ##             pop    type1  type2  type3 
-    ## num_books                              
-    ## num_boks.mn                            
-    ## sex0                                   
-    ## word_knowl                             
-    ## homework                               
-    ## sex0.mn                                
-    ## wrd_knwl.mn                            
-    ## homework.mn                            
-    ## pop                                    
-    ## type1       -0.371                     
-    ## type2       -0.437  0.559              
-    ## type3       -0.090  0.096  0.107       
-    ## type4       -0.147  0.238  0.291  0.038
+    ## Correlation matrix not shown by default, as p = 14 > 12.
+    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
+    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
+
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -246,11 +233,8 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##     gamma 
     ## 0.0534951 
-    ## [1] "range for nu(by.vx.bz): "
-    ##    gamma    gamma    gamma 
-    ## -0.00751  0.04139  0.08703 
-    ## 0.1397986 1.047607 -0.08404467 1.482858 
-    ## 0.3040622 1.211871 0.0802189 1.647122
+    ## 0.1397986 1.047607 -0.08404466 1.482858 
+    ## 0.3040622 1.211871 0.08021893 1.647122
 
     ## [1] "sweden"
     ## Linear mixed model fit by REML ['lmerMod']
@@ -289,34 +273,12 @@ Then run models, all in a loop one for each country selected.
     ## type1          0.0179358  0.0366207   0.490
     ## type2          0.0003057  0.0415866   0.007
     ## type3         -0.0016143  0.0317164  -0.051
+
     ## 
-    ## Correlation of Fixed Effects:
-    ##             (Intr) nm_bks nm_bk. sex0   wrd_kn homwrk sx0.mn wrd_k. hmwrk.
-    ## num_books    0.000                                                        
-    ## num_boks.mn  0.004  0.000                                                 
-    ## sex0         0.000  0.008  0.000                                          
-    ## word_knowl   0.000 -0.132  0.000  0.074                                   
-    ## homework     0.000 -0.010  0.000 -0.039 -0.050                            
-    ## sex0.mn      0.008  0.000 -0.166  0.000  0.000  0.000                     
-    ## wrd_knwl.mn  0.007  0.000 -0.120  0.000  0.000  0.000  0.090              
-    ## homework.mn  0.031  0.000 -0.008  0.000  0.000  0.000 -0.013 -0.176       
-    ## pop          0.027  0.000 -0.061  0.000  0.000  0.000  0.039  0.169  0.054
-    ## type1        0.048  0.000 -0.265  0.000  0.000  0.000  0.092 -0.147 -0.108
-    ## type2        0.036  0.000 -0.469  0.000  0.000  0.000  0.050 -0.114 -0.106
-    ## type3        0.024  0.000 -0.150  0.000  0.000  0.000  0.033 -0.054 -0.124
-    ##             pop    type1  type2 
-    ## num_books                       
-    ## num_boks.mn                     
-    ## sex0                            
-    ## word_knowl                      
-    ## homework                        
-    ## sex0.mn                         
-    ## wrd_knwl.mn                     
-    ## homework.mn                     
-    ## pop                             
-    ## type1       -0.192              
-    ## type2       -0.272  0.655       
-    ## type3       -0.219  0.486  0.506
+    ## Correlation matrix not shown by default, as p = 13 > 12.
+    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
+    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
+
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -361,9 +323,6 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##      gamma 
     ## 0.02048167 
-    ## [1] "range for nu(by.vx.bz): "
-    ##   gamma   gamma   gamma 
-    ## -0.0437  0.0115  0.0635 
     ## 0.3275606 0.2708298 0.07227225 0.5828489 
     ## 0.3335862 0.2768555 0.07829791 0.5888745
 
@@ -407,40 +366,12 @@ Then run models, all in a loop one for each country selected.
     ## type4          0.02678    0.04168   0.642
     ## type5         -0.02294    0.04090  -0.561
     ## type6          0.01339    0.04160   0.322
+
     ## 
-    ## Correlation of Fixed Effects:
-    ##             (Intr) nm_bks nm_bk. sex0   wrd_kn homwrk sx0.mn wrd_k. hmwrk.
-    ## num_books    0.000                                                        
-    ## num_boks.mn  0.050  0.000                                                 
-    ## sex0         0.000  0.023  0.000                                          
-    ## word_knowl   0.000 -0.148  0.000  0.014                                   
-    ## homework     0.000 -0.029  0.000  0.009 -0.054                            
-    ## sex0.mn     -0.032  0.000 -0.025  0.000  0.000  0.000                     
-    ## wrd_knwl.mn  0.004  0.000 -0.261  0.000  0.000  0.000  0.009              
-    ## homework.mn -0.010  0.000 -0.070  0.000  0.000  0.000  0.130 -0.065       
-    ## pop          0.242  0.000 -0.036  0.000  0.000  0.000  0.016  0.117 -0.087
-    ## type1        0.018  0.000 -0.158  0.000  0.000  0.000  0.031  0.060  0.076
-    ## type2        0.073  0.000 -0.167  0.000  0.000  0.000  0.026 -0.197  0.069
-    ## type3        0.034  0.000 -0.039  0.000  0.000  0.000  0.006 -0.073  0.126
-    ## type4        0.028  0.000  0.056  0.000  0.000  0.000  0.039 -0.096  0.028
-    ## type5        0.031  0.000 -0.111  0.000  0.000  0.000  0.000 -0.073  0.061
-    ## type6        0.025  0.000  0.009  0.000  0.000  0.000  0.018 -0.061  0.040
-    ##             pop    type1  type2  type3  type4  type5 
-    ## num_books                                            
-    ## num_boks.mn                                          
-    ## sex0                                                 
-    ## word_knowl                                           
-    ## homework                                             
-    ## sex0.mn                                              
-    ## wrd_knwl.mn                                          
-    ## homework.mn                                          
-    ## pop                                                  
-    ## type1       -0.291                                   
-    ## type2       -0.611  0.491                            
-    ## type3       -0.151  0.361  0.435                     
-    ## type4       -0.346  0.369  0.502  0.360              
-    ## type5       -0.290  0.321  0.442  0.300  0.316       
-    ## type6       -0.340  0.305  0.428  0.282  0.324  0.263
+    ## Correlation matrix not shown by default, as p = 16 > 12.
+    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
+    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
+
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -488,8 +419,7 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##    gamma 
     ## 0.111183 
-    ## [1] "range for nu(by.vx.bz): "
-    ##  gamma  gamma  gamma 
-    ## 0.0581 0.0989 0.1356 
     ## 0.1207769 0.4215799 -0.07064312 0.6129999 
     ## 0.2532973 0.5541002 0.06187724 0.7455203
+
+Done.

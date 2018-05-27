@@ -1,13 +1,14 @@
 ---
-title: "BiasAmp Code"
+title: "BiasAmp Code to Replicate Obs. Studies (2018) paper"
 author: Marc Scott
 output: md_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-# family backgroud (# books in home) on reading comprehension score #
+# IEA International Obs Study in which the "treatment" is a family characteristic (# books in home) regressed on reading comprehension score 
 
+# In terms of our modeling paradogm, the variables are (numbers in parenthesis indicate location in original IEA file):
 # Y: reading comprehension test raw score (608)
 # G: different schools (3)
 # Z: number of books in home (178)
@@ -39,25 +40,37 @@ if (!exists('scotland')) load("ObsStudies_IEA.RData")
 
 This is a script that produces model results (but not all plots) for the ObsStudies paper.
 
-## Data Setup first
-## Then run models, all in a loop one for each country selected.
 
 ```{r 1}
-#choice of country names
+#chose country names
+#each name corresponds to a dataframe object in ObsStudies_IEA.RData 
+
 cnames <-c("scotland","sweden","italy")
+
+```
+
+## Data Setup first
+## Common formulas set up
+## Then run models, all in a loop one for each country selected.
+
+```{r 2}
 
 set.seed(12341)
 for (ii in 1:length(cnames)) {
     
   country <- get(cnames[ii])
 
-  country$pop <- log(country$pop)
+  #BETWEEN ##### could be a class to a 'helper' function called IEApreprocess that takes logs, removes NAs, etc.
+  ################################
+  country$pop <- log(country$pop)  #transform towards symmetry
   country$pop[is.infinite(country$pop)] <- NA
+  
   country$type <- factor(country$type)
-  #remove nas:
+  
+  #remove NAs:
   cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country) #should remove NAs
 
-  #fix type factors:
+  #set up indiactor vars for factors:
   cdat$type0 <- 1*(cdat$type==0)
   cdat$type1 <- 1*(cdat$type==1)
   cdat$type2 <- 1*(cdat$type==2)
@@ -68,9 +81,11 @@ for (ii in 1:length(cnames)) {
 
   nPerSchool <- mean(table(cdat$school))
   nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # geo-mean
-
-  #model spec. 
+  ##################################
   
+  ## Prepare the formulas for the model fit calls.  -- make a helper fnc.
+  ## 
+  ##################################
   #indiv preds
   fmlaX <- ~sex + word_knowl + homework
   #group var preds
@@ -86,13 +101,18 @@ for (ii in 1:length(cnames)) {
       }
   }
   fmlaW <- as.formula(fmlaW.str)
-
   #set treatment
   fmlaZ <- ~num_books
   fmlaY <- ~score
-
+  ####################################
+  
+  
   #fit models
   mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
+  
+  ## Make a helper function out of below that's a PRINT method, basically, taking mdl.fit as the main argument.
+  ##
+  ################################
   #extract variance comps & some bias diffs
   pObj <- extractParams(mdl.fit)
   #for ObsStudies paper:
@@ -106,20 +126,29 @@ for (ii in 1:length(cnames)) {
   print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
   print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$gz.vw.gz)),3),collapse=", "),sep=" "))
+  ####################################
 
+
+  ## helper function for the condition number of matrix used in the model - call, print, and move on.
+  ## possible that we need some of the params generated here going forward.  Check.
+  ##
+  ################################
   parms <- c("zeta","delta","beta","gamma")
   paramIdx <- 4
   paramCh <- parms[paramIdx]
+  
   rescaleParms <- c(1,1)
   bnd.f <- makeBnds(pObj,param=paramCh)
 
-  recovParms4<-recovParms<-recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1,gpSize=nPerSchool)
+  recovParms4 <- recovParms <- recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1, gpSize=nPerSchool)  # corresponds to the bound when 'gamma' (parm 4) is the open param.
 
   cat("cond num=",recovParms$condNum,"\n")
+  ####################################
 
   #FIND THE RIGHT 4th Param from the 3rd param beta-based value for eta...
-  recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)
+  recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)  # corresponds to the bound when 'beta' (parm 3) is the open param.
   
+  #there is a gamma corresp. to this beta
   gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$by.vx.bz)),4]
   
   #get other 'target' values:
@@ -144,24 +173,14 @@ for (ii in 1:length(cnames)) {
   tpch <- c(0,4,1,3)
   taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
   confPts <- NULL #default
-  if (!is.null(mdl.fit$bsSamps)) {
-      if (dim(mdl.fit$bsSamps)[1]!=0) {
-         rslt0 <- bsConfParms(mdl.fit$bsSamps,201,bnd.f,nPerSchool,tau.max=1,trim=0.025)$parms
-         confPts <- cbind(as.vector(rslt0[,,2]),as.vector(rslt0[,,1]))
-      }
-  }
   
-  rslt0 <- bsConfParmsSim(mdl.fit,nSims=250,nTarg=201,bnd.f=bnd.f,gpSize=nPerSchool,tau.max=1,debug=F,allowVarBool=c(T,T,T,rep(T,4)),line=F)
-  confPts <- cbind(as.vector(rslt0$lines[,,2]),as.vector(rslt0$lines[,,1]))
-  
-  gamma.at.beta025 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.025)))),4]
-  gamma.at.beta975 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.975)))),4]
-
   print("target for nu(by.vx.bz): ")
   print(nu.at.zeta.0)
-  print("range for nu(by.vx.bz): ")
-  print(c(gamma.at.beta025, gamma.at.beta,gamma.at.beta975),digits=3)
   
   plot(zdPlot(recovParms$zetaDeltaMat[,1],recovParms$zetaDeltaMat[,2],recovParms$parmRange,rescaleParms=rescaleParms,confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
   dev.off()
 }
+```
+
+Done.
+
