@@ -1,3 +1,12 @@
+---
+title: "BiasAmp Code to Replicate Danger Zones Plots from Obs. Studies (2018) paper"
+author: Marc Scott
+output: md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
 require(lattice)
 
 #used to generate figure 1 in the Observational Studies paper
@@ -58,4 +67,4 @@ dev.off()
 png("dz_3_1.png",width=480*2,height=480*2)
 plot(levelplot(t(bd.3.1), at=seq(-4,4,length=17),colorkey=list(at=at.pts,labels=list(labels=spec.lbl,cex=lcex)),scales=list(x=list(cex=lcex),y=list(cex=lcex)),panel=pfunct,row.values=zeta,column.values=delta,xlab=list(expression(delta^{yz}),cex=lcex),ylab=list(expression(zeta^{yz}),cex=lcex)))
 dev.off()
-
+```
