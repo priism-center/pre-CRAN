@@ -1,6 +1,9 @@
 run lmer and lm models
 ======================
 
+This is a script that produces model results (but not all plots) for the
+ObsStudies paper.
+
 Data Setup first
 ----------------
 
