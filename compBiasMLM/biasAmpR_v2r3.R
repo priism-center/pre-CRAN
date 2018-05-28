@@ -37,13 +37,12 @@ library(reshape)
 #    group = ~id
 #    data: the dataframe
 
-#R function to mimic a prior used in alternative approach.
-my_rbeta <-function(n,a,b,scale) {
-    scale*rbeta(n,a,b)*sample(c(1,-1),n,replace=T)
-}
+#helper fnc:
+rm.na <- function(x) x[!is.na(x)]
 
 lmExtract <- function(lmObject,treatName) {
-    #extract 'Z' beta & s.e.(beta); only 'treatname' entry
+    #extract tau (coef) corresponding to treatment Z & s.e.(tau)
+    # based only on 'treatName' entry
     tau <- coef(lmObject)[treatName]
     rse <- summary(lmObject)$sigma
     vcv0 <- summary(lmObject)$cov
@@ -52,8 +51,8 @@ lmExtract <- function(lmObject,treatName) {
 }
 
 lmeExtract <- function(lmeObject,treatName,treatGpName) {
-    #works on lme or lmer obj (deprecated: now only use lmer objects)
-    #extract fixef of treatment & variances of random intercept model & ln(vcv) of those:
+    #works on lmer obj
+    #extract fixef of treatment (two forms - 2nd one is group mean)
     #fixef:
     tau <- fixef(lmeObject)[c(treatName,treatGpName)]
     #se
@@ -62,7 +61,8 @@ lmeExtract <- function(lmeObject,treatName,treatGpName) {
 
 
 lmeExtract.varcomp <- function(lmeObject) {
-    #extract fixef of treatment & variances of random intercept model & ln(vcv) of those:
+    #extract variances of random intercept model & ln(vcv) of those:
+    #currently works on lme & lmer objects; could deprecate the lme part
     #variances:
     if (class(lmeObject)=="lmerMod") {
        vcomps <- c(as.numeric(VarCorr(lmeObject)[[1]]),sigma(lmeObject)^2)
@@ -71,7 +71,13 @@ lmeExtract.varcomp <- function(lmeObject) {
     list(vcomps=vcomps)
 }
 
-scaleAll <- function(x) { #will try to scale factors whenever possible
+#helper function to get s.e. of param ests.
+seExtract <- function(lmerObj) coef(summary(lmerObj))[,"Std. Error"]
+
+
+scaleAll <- function(x) {
+    
+  # try to scale factors whenever possible
 
   if (is.numeric(x)) return(scale(x))
   if (is.factor(x)) return(as.numeric(levels(x)[x]))
@@ -84,6 +90,7 @@ processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
     #group mean centering, stdzing, etc.  Everything you meed to do to put the data in form corresp. to the DGP as described in the ObsStudies paper
 
     #helper function; inelegant, but gets the job done
+    #Could be replaced by Map()
     apply.tapply <- function(m,MARGIN,INDEX,FUN,...){
         #call apply on tapply, but keep the arguments straight
         f<-function(m,INDEX) {
@@ -132,7 +139,7 @@ processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
     return(list(X=X,Xnew=Xnew,newNmsX=newNmsX,Xfmla=Xfmla,Z=Z,Znew=Znew,newNmsZ=newNmsZ,W=W,Wfmla=Wfmla, YZdata=YZdata))
 }
 
-#helper funct:
+#helper funct. for checking results of try() on lmer calls, which can fail:
 isErrClass <- function(x) {class(x)=="try-error"}
 
 runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pred = ~W, group = ~id, data, center=T, stdz=T) {
@@ -140,12 +147,14 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     # all formula components are given using formula notation
     # group identifier
     # data: the dataframe
-    #center: group mean center
+    #center: group mean center (making this an option may lead to unstable results -- perhaps add a warning?)
     
     nRecs <- dim(data)[1]
     IDname <- as.character(group)[2]
     id <- data[,IDname]
+    
     #it is important (really just if using a bootstrap, but we will do it to be consistent) that all id's appear together.  So we sort by id here:
+    #could be replaced by more elegant command from the tidyverse?
     ord <- order(id)
     data <- data[ord,] #everything needs to be reordered
     id <- data[,IDname] #refresh this value
@@ -153,7 +162,10 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     uniq.ids <- sort(unique(id)) #sorting is important at this stage - for tapply & GMC to work properly
     nUniqIds <- length(uniq.ids)
     
-    id.orig <- match(id,uniq.ids) # map back onto original dimensions
+    idNew <- match(id,uniq.ids) # map back onto original dimensions
+    
+    
+    #formula set up
     groupStr0 <- as.formula(paste("~1|",IDname,sep=""))
     groupStr <- as.formula("~1|idNew")  #this will override the group ID
 
@@ -169,18 +181,16 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     Zfmla1.lmer <-as.formula(paste(Zname,"~1+(1|idNew)",sep=""))
     YZdata <- data[,c(Yname,Zname,IDname)] #this will be useful in simpler models.
     
+    
+    #design matrix/initial data processing
     X <- model.matrix(level1.pred,data)[,-1,drop=F] # first col is just 1s.
     W <- NULL
     if (!is.null(level2.pred)) W <- model.matrix(level2.pred,data)[,-1,drop=F]
     Z <- model.matrix(treatment,data)[,-1,drop=F] # first col is just 1s.
     varZ <- var(Z) #need this value to rescale treatment effect bias
     
-    id.cts <- table(id.orig)
+    id.cts <- table(idNew)
     allIds <- rep(1:nUniqIds,id.cts)
-
-    #rm.na function may be more efficient than na.omit.
-    rm.na <- function(x) x[!is.na(x)]
-
 
     #store orig:
     X0<-X
@@ -192,14 +202,13 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     dimnames(W0) <- list(NULL,dimnames(W0)[[2]]) #to avoid the dup names problem
     dimnames(YZdata0) <- list(NULL,dimnames(YZdata0)[[2]]) #to avoid the dup names problem
 
-    idNew <- id.orig  ##unnec. but keep for a while (o/w all idNew must become id.orig....)
-    id.sel <- 1:nRecs
     #on Y~Z and Y~Z+Xctrd+Xmean+W, run OLS.
     #for all group-varying preds: GMC everything (perhaps at the level of the design matrix for ease)
     #so matrix is [Y,Zctrd,Zmean,Xctrd,Xmean,W], where W are group const
     #assumes at least ONE X, potentially NO Ws...
  
-    pd <- processData(X0,Z0,W0,Wfmla=level2.pred,YZdata0, IDname,idNew,center,stdz)
+ pd <- processData(X0,Z0,W0,Wfmla=level2.pred,YZdata0, IDname,idNew,center,stdz)  #results in a list data structure with most of the hard data manip accomplished
+ #rename terms to make identification (by us) clearer as we fit models
     X<-pd$X
     Z<-pd$Z
     W<-pd$W
@@ -211,7 +220,8 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     newNmsZ <- pd$newNmsZ
     Wfmla <- pd$Wfmla
     YZdata <- pd$YZdata
-        
+    
+    #fit models needed for parameters used in the paper:
 
     mlm0.y <- lmer(formula(terms(Yfmla.lmer,data=Znew,allowDotAsName=T)), data=as.data.frame(cbind(cbind(YZdata[,c(Yname,IDname)],Znew),idNew)))
     mlm1.y <- lmer(formula(terms(Yfmla.lmer,data=cbind(Znew,Xnew,W),allowDotAsName=T)), data=as.data.frame(cbind(cbind(YZdata[,c(Yname,IDname)],Znew,cbind(Xnew,W)),idNew)))
@@ -224,8 +234,9 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
 
 
 
-    #construct V(X) and V(W) - easier here:
+    #data used in runs (for any post processing)
     newData <- as.data.frame(cbind(YZdata[,c(Yname,IDname)],Znew,cbind(Xnew,W),idNew))
+    #construct V(X) and V(W) - easier to do here instead of in postproc phase:
     varW <- as.matrix(var(model.matrix(Wfmla,newData)[,-1,drop=F]))
     varX <- as.matrix(var(model.matrix(Xfmla,newData)[,-1,drop=F]))
 
@@ -235,8 +246,10 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
 
 
 makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
+   #helper function to extractParams to generate terms needed eventually for bounds
    #get gamm.z'V(w)gamm.z from model 1 (for Z)
-   #add sd*se to gamma or beta
+   #add sd*se to gamma or beta [ref]
+   
    wNames <- attr(terms(level2.pred),"term.labels")
    nmsZ <- names(fe_mlm1.z)
    if (is.null(nmsZ)) nmsZ <- dimnames(fe_mlm1.z)[[2]] #handles 2 cases
@@ -278,7 +291,6 @@ makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
    list(varX=varX,varW=varW,gz.vw.gz=gz.vw.gz, bz.vx.bz=bz.vx.bz, gy.vw.gz=gy.vw.gz, gy.vw.gy=gy.vw.gy, by.vx.bz=by.vx.bz, by.vx.by=by.vx.by)
 }
 
-seExtract <- function(lmerObj) coef(summary(lmerObj))[,"Std. Error"]
 
 extractParams <- function(runModelRslt) {
     
@@ -359,11 +371,10 @@ extractParams <- function(runModelRslt) {
      list(sds.y.ucm=list(sd.eps.y.ucm=sd.eps.y.ucm,sd.alpha.y.ucm=sd.alpha.y.ucm),sigma.sq.between.y.0=sigma.sq.between.y.0,sigs=sigs, bias.diffs=c(within.bias.diff,between.bias.diff,ols.bias.diff),tau.w=c(tau0.w,tau1.w),tau.b=c(tau0.b,tau1.b),tau.ols=c(runModelRslt$ols0.y$coef[2],runModelRslt$ols1.y$coef[2]),gz.vw.gz=gz.vw.gz,gy.vw.gz=gy.vw.gz,gy.vw.gy=gy.vw.gy,bz.vx.bz=bz.vx.bz,by.vx.bz=by.vx.bz,by.vx.by=by.vx.by, varY=varY,varZ=varZ,vcv.tau0=vcv.tau0,vcv.tau1=vcv.tau1,seOLS=c(se.tau0.ols, se.tau1.ols))
 }
 
-
-
 makeBnds <- function(paramObj,param='gamma') {
     
     #extract from paramObj - yields a function of tau that sets a bound on feasible eta;
+    #param allows one to switch the 'open' param (see paper) and this yields a different set of bounds.
 
     gz.vw.gz <- paramObj$gz.vw.gz
     gy.vw.gy <- paramObj$gy.vw.gy
@@ -396,7 +407,7 @@ makeBnds <- function(paramObj,param='gamma') {
 
 makeLinEqMat <- function(c_w0,c_w1,c_b0,c_b1,idx=4,gpSize=Inf) {
     
-    #set up the matrix of the 4 linear equations.
+    #set up the matrix of the 4 linear equations.  See paper.
     m <- matrix(0,4,4)
     m[1,1] <- 1/c_w0-1/c_w1
     m[1,3] <- 1/c_w0
@@ -569,213 +580,6 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
     levelplot(z~x*y,data=df,at=at.pts2,colorkey=list(at=at.pts,labels=list(at=at.pts,label=spec.lbl,cex=.75*cex)), panel=pfunct,row.values=delta,column.values=zeta,xlab=list(label=expression(delta^{yz}),cex=.85*cex),ylab=list(label=expression(zeta^{yz}),cex=.85*cex),zeta1=zeta1,delta1=delta1,cols0=8,target=targetPts,targetPch=targetPch,confPts=confPts,confPtsCol=confPtsCol,taus=tau.to.plot,cex=cex,scales=list(x=list(cex=.85*cex),y=list(cex=.85*cex),cex=cex),...)
 }
 
-rm.na <- function(x) x[!is.na(x)]
-
-bsConfParmsSim <- function(modelRun,nSims=100,nTarg=201,conf=.95,bnd.f,varyParm="gamma",gpSize,tau.max=1,debug=F,allowVarBool=rep(T,7),lines=T) {
-    
-    #use s.e. and vcvs in pObj to resample key confounding params
-    if (class(modelRun$mlm0.z)!="lmerMod") stop ("Rerun runModels using lmeSwitch=F\n") #deprecated - all models should now be run with lmer, not lme...
-    #extract varcomps:
-    mlm1.z.sim<-sim(modelRun$mlm1.z,nSims)
-    c_b1s <- apply(mlm1.z.sim@ranef[[1]][,,1],1,var)
-    c_w1s <- mlm1.z.sim@sigma^2
-    #extract bias diffs:
-    mlm1.y.sim<-sim(modelRun$mlm1.y,nSims)
-    outcome.name <- attr(terms(modelRun$outcome),"term.labels")
-    treat.gpname <- modelRun$treatment.gp
-    treat.varname <- attr(terms(modelRun$treatment),"term.labels")
-    tau1.w <- mlm1.y.sim@fixef[,treat.varname]
-    tau1.b <- mlm1.y.sim@fixef[,treat.gpname]
-    #now ols:
-    lm1.y.sim<-sim(modelRun$ols1.y,nSims)
-    tau1.ols <- lm1.y.sim@coef[,treat.varname]
-    
-    #assuming indep across models yields too liberal a bound -- resample from '1' models for '0' model fits.
-    data <- modelRun$newData
-    ncols <- dim(data)[2]
-    nrecs <- dim(data)[1]
-
-    #setup for tau0.w and tau0.b, tau0.o
-    xwCoefs <- mlm1.y.sim@fixef
-    #drop first 2, and last cols of data, which are outcome and identifiers, resp.; add col. of ones, proceed.
-    fePred <- xwCoefs%*%rbind(1,t(data[,-c(1:2,ncols)]))
-    newId <- data[,ncols] #seems like specialized knowledge at this point...
-    randEffs <- mlm1.y.sim@ranef[[1]]
-    id.re <- as.numeric(dimnames(randEffs)[[2]]) #effectively, we require numeric ids..
-    idx <- match(newId,id.re)
-    rePred <- randEffs[,idx,1] # asms random intercept model (dim: nsims X nrecs)
-    sigs <- mlm1.y.sim@sigma
-    #build synthetic data from model 1 as null:
-    eps <- matrix(rnorm(nSims*nrecs,mean=0,sd=rep(sigs,each=nrecs)),byrow=T,nrow=nSims)
-    newYs <- fePred + rePred + eps # synthetic data, all to get a tau.
-    tmpdata.y <- data[,-2] #drop id (old)
-
-    #setup for c_w0 c_b0
-    xwCoefs <- mlm1.z.sim@fixef
-    #use names to select cols:
-    selCols <- rm.na(match(dimnames(xwCoefs)[[2]],dimnames(data)[[2]]))
-    fePred <- xwCoefs%*%rbind(1,t(data[,selCols]))
-    randEffs <- mlm1.z.sim@ranef[[1]]
-    id.re <- as.numeric(dimnames(randEffs)[[2]]) #effectively, we require numeric ids..
-    idx <- match(newId,id.re)
-    rePred <- randEffs[,idx,1] # asms random intercept model (dim: nsims X nrecs)
-    sigs <- mlm1.z.sim@sigma
-    #build synthetic data from model 1 as null:
-    eps <- matrix(rnorm(nSims*nrecs,mean=0,sd=rep(sigs,each=nrecs)),byrow=T,nrow=nSims)
-    newZs <- fePred + rePred + eps # synthetic data, all to get a tau.
-    tmpdata.z <- data[,c(treat.varname,"idNew")] # 1st col is placeholder for newZs
-
-    ncols.tmp <- dim(tmpdata.y)[[2]]
-    tau0.w <- tau0.b <- tau0.ols <- sd.alpha.y.ucm <- sd.eps.y.ucm <- rep(NA,nSims)
-    c_w0s <- c_b0s <- rep(NA,nSims)
-    altNsims <- nSims
-    if (!lines) altNsims <- 2 # partial speedup
-    for (i in 1:nSims) {
-        tmpdata.y[,1] <- newYs[i,] #substitute new outcomes
-        #y~
-        fmlaStr <- as.character(modelRun$Yfmla)
-        yFmla <- as.formula(paste(fmlaStr[2],fmlaStr[1],attr(terms(modelRun$treatment),"term.labels"),"+",modelRun$treatment.gp,substring(fmlaStr[3],2),collapse=""))
-        fit.y <- lmer(yFmla,data=tmpdata.y) # need kludge to get past y~. + ... formula.  Need to explicitly list z, z.mn instead
-        taus <- lmeExtract(fit.y,attr(terms(modelRun$treatment),"term.labels"),modelRun$treatment.gp)$tau
-        tau0.w[i] <- taus[1]
-        tau0.b[i] <- taus[2]
-        yFmla.ols <- as.formula(paste(attr(terms(modelRun$outcome),"term.labels"),paste(as.character(modelRun$treatment),collapse=""),sep=""))
-        #add back group means
-        tmpdata.y.ols <- tmpdata.y[,1:2]
-        tmpdata.y.ols[,2] <- tmpdata.y.ols[,2] + tmpdata.y[,3]
-        fit.ols <- lm(yFmla.ols,data=tmpdata.y.ols)
-        ##browser()
-        tau0.ols[i] <- lmExtract(fit.ols,attr(terms(modelRun$treatment),"term.labels"))$tau
-        #z~
-        ##different data needed here, and not GMCed.
-        tmpdata.z[,1] <- newZs[i,] #substitute new outcomes
-        fit.z <- lmer(modelRun$Zfmla,data=tmpdata.z)
-        vcs <- lmeExtract.varcomp(fit.z)$vcomps
-        c_w0s[i] <- vcs[2]
-        c_b0s[i] <- vcs[1]
-        #ucm
-        fit.ucm.y <- lmer(modelRun$Yfmla,data=tmpdata.y[,c(outcome.name,"idNew")])
-        ucm.vc <- lmeExtract.varcomp(fit.ucm.y)
-        sd.alpha.y.ucm[i] <- sqrt(ucm.vc$vcomps[1])
-        sd.eps.y.ucm[i] <- sqrt(ucm.vc$vcomps[2])
-    }
-
-    bd <-cbind(tau0.w-tau1.w,tau0.b-tau1.b,tau0.ols-tau1.ols)
-    
-    pObj <- extractParams(modelRun)
-    fixedBdMat <- matrix(pObj$bias.diffs,ncol=3,nrow=nSims,byrow=T) #replacement with consts
-    bd[,!allowVarBool[1:3]] <- fixedBdMat[,!allowVarBool[1:3]]
-    
-    #get gamm.z'V(w)gamm.z from model 1 (for Z, Y)
-    ##****fix as.data.frame to work in call using dimnames, not names.  Fix in other call as well...
-    xprods <- makeSpecProds(modelRun$Wfmla,as.data.frame(mlm1.z.sim@fixef),as.data.frame(mlm1.y.sim@fixef),modelRun$varW,modelRun$varX)
-    varW <- xprods$varW #these are reordered to reflect proper variable ordering.
-    varX <- xprods$varX
-    gz.vw.gz <- xprods$gz.vw.gz
-    bz.vx.bz <- xprods$bz.vx.bz
-    gy.vw.gz <- xprods$gy.vw.gz
-    gy.vw.gy <- xprods$gy.vw.gy
-    #
-    # check dimension -- will need to take diag when return is from a sim vector...
-    #
-    by.vx.bz <- xprods$by.vx.bz
-    by.vx.by <- xprods$by.vx.by
-    
-    
-    #need bnd.fnc to vary by sim, which means need new ucm model each run.
-    ####*************
-    
-    #scale between difference by a factor (test theory on why points 'blow up':
-    ###bd[,2] <- bd[,2]*betScaleFact
-    sigArray <- cbind(c_w0s,c_w1s,c_b0s,c_b1s)
-    fixedSigMat <- matrix(as.vector(pObj$sigs),nrow=nSims,ncol=4,byrow=T)
-    sigArray[,!allowVarBool[4:7]] <- fixedSigMat[,!allowVarBool[4:7]]
-    rslt <- array(NA,c(nSims,nTarg,4)) #there are 4 'output' conf parms
-    if (debug) {
-       pObj <- extractParams(modelRun)
-       if (T) {
-         curdev <- dev.cur()
-         quartz()
-         par(mfrow=c(3,4))
-         plot(density(tau0.w));abline(v=pObj$tau.w[1],col=8)
-         plot(density(tau1.w));abline(v=pObj$tau.w[2],col=8)
-         plot(density(tau0.b));abline(v=pObj$tau.b[1],col=8)
-         plot(density(tau1.b));abline(v=pObj$tau.b[2],col=8)
-         plot(density(tau0.ols));abline(v=pObj$tau.ols[1],col=8)
-         plot(density(tau1.ols));abline(v=pObj$tau.ols[2],col=8)
-         plot(density(c_w0s));abline(v=pObj$sigs[1,1],col=8)
-         plot(density(c_w1s));abline(v=pObj$sigs[2,1],col=8)
-         plot(density(c_b0s));abline(v=pObj$sigs[1,2],col=8)
-         plot(density(c_b1s));abline(v=pObj$sigs[2,2],col=8)
-         quartz()
-         pairs(cbind(tau0.w,tau1.w,tau0.b,tau1.b,tau0.ols,tau1.ols,c_w0s,c_w1s,c_b0s,c_b1s),pch='.')
-         dev.set(curdev)
-       }
-       coefVar <- function(muTarg,muSamp) {sigma<-apply(muSamp,2,sd);sigma/muTarg}
-       cvs <- coefVar(c(pObj$tau.w[1],pObj$tau.w[2],pObj$tau.b[1],pObj$tau.b[2],pObj$tau.ols[1],pObj$tau.ols[2],as.vector(pObj$sigs)),cbind(tau0.w,tau1.w,tau0.b,tau1.b,tau0.ols,tau1.ols,c_w0s,c_w1s,c_b0s,c_b1s))
-
-       print(cvs[1:6])
-       print(cvs[7:10])
-    }
-
-  
-    #add to fakepObj
-    
-    for (i in 1:nSims) {
-        sigs0 <- matrix(sigArray[i,],2,2,byrow=F)
-        fakepObj <- pObj
-        fakepObj$sigs=sigs0
-        fakepObj$bias.diffs=bd[i,]
-        fakepObj$gz.vw.gz= gz.vw.gz[i,i]
-        fakepObj$bz.vx.bz=bz.vx.bz[i,i]   #implicitly taking diag()
-        fakepObj$gy.vw.gz=gy.vw.gz[i,i]
-        fakepObj$gy.vw.gy=gy.vw.gy[i,i]
-        fakepObj$by.vw.bz=by.vx.bz[i,i]
-        fakepObj$by.vx.by=by.vx.by[i,i]
-        fakepObj$sds.y.ucm$sd.alpha.y.ucm <- sd.alpha.y.ucm[i]
-        fakepObj$sds.y.ucm$sd.eps.y.ucm <-  sd.eps.y.ucm[i]
-        
-        bnd.f <- makeBnds(fakepObj,varyParm)
-        tryrslt <- try(recovParms<-recover(fakepObj,varyParm=varyParm,bnd.f,nParms=nTarg,tau.max=tau.max,gpSize=gpSize),silent=F)
-        if (!isErrClass(tryrslt)) rslt[i,,] <- recovParms[[1]]
-    }
-    #browser()
-    
-    #remove outer 1-conf % of curves (on zeta dimension):
-    cutPt1 <- quantile((mins<-unlist(apply(rslt[,,1],1,min))),prob=(1-conf)/2)
-    cutPt2 <- quantile((maxs<-unlist(apply(rslt[,,1],1,max))),prob=conf+(1-conf)/2)
-    b <- mins>=cutPt1 & maxs<=cutPt2
-    list(lines=rslt[b,,],by.vx.bz=diag(by.vx.bz))
-}
-
-idealizedParms <- function(varX,varW,tau,betaY,betaZ,gammaY,gammaZ,zetaY,zetaZ,deltaY,deltaZ,varAlphaY,varAlphaZ,varEpsilonY,varEpsilonZ) {
-    
-    #scalar x,w only, for now.
-    #Betw. Group Size -> infty for now
-    c_W0 <- betaZ^2*varX + zetaZ^2 + varEpsilonZ
-    c_B0 <- gammaZ^2*varW + deltaZ^2 + varAlphaZ
-    c_W1 <- c_W0 - betaZ^2*varX
-    c_B1 <- c_B0 - gammaZ^2*varW
-    
-    covWinYZ <- betaZ*varX*betaY + zetaZ*zetaY
-    covBetYZ <- gammaZ*varW*gammaY + deltaZ*deltaY
-    
-    sd.eps.y.ucm <- sqrt(tau^2*(c_W0) + betaY^2*varX + zetaY^2 + varEpsilonY + 2*tau*covWinYZ)
-    sd.alpha.y.ucm <- sqrt(tau^2*(c_B0) + gammaY^2*varW + deltaY^2 + varAlphaZ + 2*tau*covBetYZ)
-    
-    zetaYZ <- zetaY*zetaZ
-    deltaYZ <- deltaY*deltaZ
-    
-    winBias0 <- (betaZ*varX*betaY+zetaYZ)/(betaZ^2*varX+c_W1)  #corrected 5Feb15; orig bZ(vX)bY - wrong.
-    betBias0 <- (gammaZ*varW*gammaY+deltaYZ)/(gammaZ^2*varW+c_B1) #fixed gammaZ*varW*gammaY to proper denom as per text
-    olsBias0 <- (betaZ*varX*betaY+gammaZ*varW*gammaY+zetaYZ+deltaYZ)/(betaZ^2*varX+gammaZ^2*varW+c_W1+c_B1) #same correction
-    
-    winBias1 <- zetaYZ/c_W1
-    betBias1 <- deltaYZ/c_B1
-    olsBias1 <- (zetaYZ+deltaYZ)/(c_W1+c_B1)
-    sigs <- matrix(c(c_W0,c_W1,c_B0,c_B1),2,2,byrow=F)
-    list(sigs=sigs,biasDiffs=c(winBias0-winBias1,betBias0-betBias1,olsBias0-olsBias1),winBias=c(winBias0,winBias1),betBias=c(betBias0,betBias1),olsBias=c(olsBias0,olsBias1), sd.y.ucm=c(sd.alpha.y.ucm,sd.eps.y.ucm))
-}
 
 
 lwDelete <- function(fmla,data) {

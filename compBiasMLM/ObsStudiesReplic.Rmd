@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # W: Z.groupmean,X.groupmean,size of the school (25,26),type of community served (18)
 
 # depends:
-#  biasAmpR_v2r2.R
+#  biasAmpR_v2r3.R
 #
 # data source:
 #  IEA.RData (preprocessed dataset)
@@ -31,7 +31,7 @@ library(arm)
 library(lattice)
 
 #read support fns
-if (!exists('runModels')) source("biasAmpR_v2r2.R")
+if (!exists('runModels')) source("biasAmpR_v2r3.R")
 #read data
 if (!exists('scotland')) load("ObsStudies_IEA.RData")
 ```
