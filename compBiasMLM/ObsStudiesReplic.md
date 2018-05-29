@@ -44,7 +44,8 @@ Then run models, all in a loop one for each country selected.
       ##################################
       
       nPerSchool <- mean(table(cdat$school))
-      nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # works better with geo-mean
+      nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (sims suggest)
+
       
       ## Prepare the formulas for the model fit calls.  -- make a helper fnc.
       ## 
@@ -233,8 +234,12 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##     gamma 
     ## 0.0534951 
-    ## 0.1397986 1.047607 -0.08404466 1.482858 
-    ## 0.3040622 1.211871 0.08021893 1.647122
+    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
+    ##      delta zeta OLS-based Within-based OLS-better?
+    ## [1,] -0.18 0.18      0.14         0.30           1
+    ## [2,] -0.89 0.06      1.05         1.21           1
+    ## [3,]  0.00 0.21     -0.08         0.08           0
+    ## [4,] -1.22 0.00      1.48         1.65           1
 
     ## [1] "sweden"
     ## Linear mixed model fit by REML ['lmerMod']
@@ -323,8 +328,12 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##      gamma 
     ## 0.02048167 
-    ## 0.3275606 0.2708298 0.07227225 0.5828489 
-    ## 0.3335862 0.2768555 0.07829791 0.5888745
+    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
+    ##      delta zeta OLS-based Within-based OLS-better?
+    ## [1,] -0.23 0.01      0.33         0.33           1
+    ## [2,] -0.18 0.01      0.27         0.28           1
+    ## [3,]  0.00 0.02      0.07         0.08           0
+    ## [4,] -0.47 0.00      0.58         0.59           1
 
     ## [1] "italy"
     ## Linear mixed model fit by REML ['lmerMod']
@@ -419,8 +428,12 @@ Then run models, all in a loop one for each country selected.
     ## [1] "target for nu(by.vx.bz): "
     ##    gamma 
     ## 0.111183 
-    ## 0.1207769 0.4215799 -0.07064312 0.6129999 
-    ## 0.2532973 0.5541002 0.06187724 0.7455203
+    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
+    ##      delta zeta OLS-based Within-based OLS-better?
+    ## [1,] -0.14 0.10      0.12         0.25           1
+    ## [2,] -0.36 0.04      0.42         0.55           1
+    ## [3,]  0.00 0.15     -0.07         0.06           0
+    ## [4,] -0.50 0.00      0.61         0.75           1
 
 Replicate Danger Zones Plots from Obs. Studies (2018) paper
 -----------------------------------------------------------

@@ -31,7 +31,7 @@ library(arm)
 library(lattice)
 
 #read support fns
-if (!exists('runModels')) source("biasAmpR_v2r3.R")
+source("biasAmpR_v2r3.R")
 #read data
 if (!exists('scotland')) load("ObsStudies_IEA.RData")
 ```
@@ -81,7 +81,8 @@ for (ii in 1:length(cnames)) {
   ##################################
   
   nPerSchool <- mean(table(cdat$school))
-  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # works better with geo-mean
+  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (sims suggest)
+
   
   ## Prepare the formulas for the model fit calls.  -- make a helper fnc.
   ## 

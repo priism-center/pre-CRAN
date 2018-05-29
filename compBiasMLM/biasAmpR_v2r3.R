@@ -574,8 +574,10 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
         corr.tau.o <- taus$ols - olsBiasOnly(zeta[locs],delta[locs],cW=cW,cB=cB)
         corr.tau.w <- taus$win - winBiasOnly(zeta[locs],cW=cW)
         tau.switch <- sign(olsMwin(zeta[locs],delta[locs],cW=cW,cB=cB))<=0
-        cat(corr.tau.o,"\n")
-        cat(corr.tau.w,"\n")
+        cat("Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):\n")
+        dstr <- cbind(zeta[locs],delta[locs],corr.tau.o,corr.tau.w,tau.switch)
+        dimnames(dstr) <- list(NULL,c("delta","zeta","OLS-based","Within-based","OLS-better?"))
+        print(round(dstr,2))
         tau.to.plot <-list(taus=cbind(corr.tau.o,corr.tau.w),offset=offset*(delta[2]-delta[1]),switch=tau.switch)
     } else {
         tau.to.plot <- NULL #for passing to levelplot pfunct

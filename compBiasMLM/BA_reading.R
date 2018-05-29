@@ -136,16 +136,16 @@ for (ii in 1:length(cnames)) {
       }
   }
   
-  rslt0 <- bsConfParmsSim(mdl.fit,nSims=250,nTarg=201,bnd.f=bnd.f,gpSize=nPerSchool,tau.max=1,debug=F,allowVarBool=c(T,T,T,rep(T,4)),line=F)
-  confPts <- cbind(as.vector(rslt0$lines[,,2]),as.vector(rslt0$lines[,,1]))
+  #rslt0 <- bsConfParmsSim(mdl.fit,nSims=250,nTarg=201,bnd.f=bnd.f,gpSize=nPerSchool,tau.max=1,debug=F,allowVarBool=c(T,T,T,rep(T,4)),line=F)
+  #confPts <- cbind(as.vector(rslt0$lines[,,2]),as.vector(rslt0$lines[,,1]))
   
-  gamma.at.beta025 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.025)))),4]
-  gamma.at.beta975 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.975)))),4]
+  #gamma.at.beta025 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.025)))),4]
+  #gamma.at.beta975 <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-quantile(rslt0$by.vx.bz,probs=c(0.975)))),4]
 
   print("target for nu(by.vx.bz): ")
   print(nu.at.zeta.0)
-  print("range for nu(by.vx.bz): ")
-  print(c(gamma.at.beta025, gamma.at.beta,gamma.at.beta975),digits=3)
+  #print("range for nu(by.vx.bz): ")
+  #print(c(gamma.at.beta025, gamma.at.beta,gamma.at.beta975),digits=3)
   
   plot(zdPlot(recovParms$zetaDeltaMat[,1],recovParms$zetaDeltaMat[,2],recovParms$parmRange,rescaleParms=rescaleParms,confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
   dev.off()
