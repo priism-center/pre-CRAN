@@ -7,7 +7,7 @@
 # W: Z.groupmean,X.groupmean,size of the school (25,26),type of community served (18)
 
 # depends:
-#  biasAmpR_v2r2.R
+#  biasAmpR_v2r3.R
 #
 # data source:
 #  IEA.RData (preprocessed dataset)
@@ -22,7 +22,7 @@ library(arm)
 library(lattice)
 
 #read support fns
-if (!exists('runModels')) source("biasAmpR_v2r2.R")
+if (!exists('runModels')) source("biasAmpR_v2r3.R")
 #read data
 if (!exists('scotland')) load("ObsStudies_IEA.RData")
 
@@ -53,7 +53,7 @@ for (ii in 1:length(cnames)) {
   cdat$type6 <- 1*(cdat$type==6)
 
   nPerSchool <- mean(table(cdat$school))
-  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # geo-mean
+  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # works better with geo-mean
 
   #indiv preds
   fmlaX <- ~sex + word_knowl + homework
