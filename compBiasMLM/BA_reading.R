@@ -90,7 +90,7 @@ for (ii in 1:length(cnames)) {
   print(round(rsltTab1,2))
   print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
-  print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$gz.vw.gz)),3),collapse=", "),sep=" "))
+  print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),3),collapse=", "),sep=" "))
 
   parms <- c("zeta","delta","beta","gamma")
   paramIdx <- 4
@@ -98,14 +98,14 @@ for (ii in 1:length(cnames)) {
   rescaleParms <- c(1,1)
   bnd.f <- makeBnds(pObj,param=paramCh)
 
-  recovParms4<-recovParms<-recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1,gpSize=nPerSchool)
+  recovParms4 <- recovParms<-recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1,gpSize=nPerSchool)
 
   cat("cond num=",recovParms$condNum,"\n")
 
   #FIND THE RIGHT 4th Param from the 3rd param beta-based value for eta...
   recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)
   
-  gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$by.vx.bz)),4]
+  gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$bndProdList$by.vx.bz)),4]
   
   #get other 'target' values:
   nu.at.zeta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,1])),paramIdx]
@@ -125,7 +125,7 @@ for (ii in 1:length(cnames)) {
   lcex <- 3
   pcex <- 2
   png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
-  tvals <- c(gamma.at.beta,pObj$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
+  tvals <- c(gamma.at.beta,pObj$bndProdList$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
   tpch <- c(0,4,1,3)
   taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
   confPts <- NULL #default

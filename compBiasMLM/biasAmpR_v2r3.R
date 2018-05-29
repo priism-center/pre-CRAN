@@ -286,22 +286,11 @@ makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
    idxX <- match(xNames,dimnames(varX)[[1]])
    varW <- as.matrix(varW[idxW,idxW])
    varX <- as.matrix(varX[idxX,idxX])
-   ##
-   ## alt: make these a list, as in :
-   ##    specProdList <- list(gz.vw.gz<=gamm.z%*%varW%*%t(gamm.z), bz.vx.bz=beta.z%*%varX%*%t(beta.z), gy.vw.gz=gamm.y%*%varW%*%t(gamm.z),    gy.vw.gy=gamm.y%*%varW%*%t(gamm.y), by.vx.bz=beta.y%*%varX%*%t(beta.z),    by.vx.by=beta.y%*%varX%*%t(beta.y))
-   ##
-   gz.vw.gz<-gamm.z%*%varW%*%t(gamm.z)
-   bz.vx.bz<-beta.z%*%varX%*%t(beta.z)
-   gy.vw.gz<-gamm.y%*%varW%*%t(gamm.z)
-   gy.vw.gy<-gamm.y%*%varW%*%t(gamm.y)
-   by.vx.bz<-beta.y%*%varX%*%t(beta.z)
-   by.vx.by<-beta.y%*%varX%*%t(beta.y)
-   ##
-   ## alt: list(varX=varX,varW=varW,specProdList=specProdList)
-   ##
-   list(varX=varX,varW=varW,gz.vw.gz=gz.vw.gz, bz.vx.bz=bz.vx.bz, gy.vw.gz=gy.vw.gz, gy.vw.gy=gy.vw.gy, by.vx.bz=by.vx.bz, by.vx.by=by.vx.by)
-   ##
-   ##
+  
+   bndProdList <- list(gz.vw.gz = gamm.z%*%varW%*%t(gamm.z), bz.vx.bz = beta.z%*%varX%*%t(beta.z), gy.vw.gz = gamm.y%*%varW%*%t(gamm.z), gy.vw.gy = gamm.y%*%varW%*%t(gamm.y), by.vx.bz = beta.y%*%varX%*%t(beta.z), by.vx.by=beta.y%*%varX%*%t(beta.y))
+  
+   list(varX=varX,varW=varW,bndProdList=bndProdList)
+   
 }
 
 
@@ -318,16 +307,6 @@ extractParams <- function(runModelRslt) {
      xprods <- makeSpecProds(level2.pred,fixef(runModelRslt$mlm1.z),fixef(runModelRslt$mlm1.y),runModelRslt$varW,runModelRslt$varX)
      varW <- xprods$varW #these are reordered to reflect proper variable ordering.
      varX <- xprods$varX
-     
-     ##
-     ## below can be specProdList...
-     ##
-     gz.vw.gz <- xprods$gz.vw.gz
-     bz.vx.bz <- xprods$bz.vx.bz
-     gy.vw.gz <- xprods$gy.vw.gz
-     gy.vw.gy <- xprods$gy.vw.gy
-     by.vx.bz <- xprods$by.vx.bz
-     by.vx.by <- xprods$by.vx.by
      
      outcome.varname <- attr(terms(outcome),"term.labels")
      varY <- var(data[,outcome.varname])
@@ -384,12 +363,7 @@ extractParams <- function(runModelRslt) {
      ucm.vc <- lmeExtract.varcomp(runModelRslt$mlm.ucm.y)
      sd.alpha.y.ucm <- sqrt(ucm.vc$vcomps[1])
      sd.eps.y.ucm <- sqrt(ucm.vc$vcomps[2])
-     
-     ##
-     ## just passing through the specProdList..
-     ##
-     
-     list(sds.y.ucm=list(sd.eps.y.ucm=sd.eps.y.ucm,sd.alpha.y.ucm=sd.alpha.y.ucm),sigma.sq.between.y.0=sigma.sq.between.y.0,sigs=sigs, bias.diffs=c(within.bias.diff,between.bias.diff,ols.bias.diff),tau.w=c(tau0.w,tau1.w),tau.b=c(tau0.b,tau1.b),tau.ols=c(runModelRslt$ols0.y$coef[2],runModelRslt$ols1.y$coef[2]),gz.vw.gz=gz.vw.gz,gy.vw.gz=gy.vw.gz,gy.vw.gy=gy.vw.gy,bz.vx.bz=bz.vx.bz,by.vx.bz=by.vx.bz,by.vx.by=by.vx.by, varY=varY,varZ=varZ,vcv.tau0=vcv.tau0,vcv.tau1=vcv.tau1,seOLS=c(se.tau0.ols, se.tau1.ols))
+     list(sds.y.ucm=list(sd.eps.y.ucm=sd.eps.y.ucm,sd.alpha.y.ucm=sd.alpha.y.ucm),sigma.sq.between.y.0=sigma.sq.between.y.0,sigs=sigs, bias.diffs=c(within.bias.diff,between.bias.diff,ols.bias.diff),tau.w=c(tau0.w,tau1.w),tau.b=c(tau0.b,tau1.b),tau.ols=c(runModelRslt$ols0.y$coef[2],runModelRslt$ols1.y$coef[2]),bndProdList=xprods$bndProdList, varY=varY,varZ=varZ,vcv.tau0=vcv.tau0,vcv.tau1=vcv.tau1,seOLS=c(se.tau0.ols, se.tau1.ols))
 }
 
 makeBnds <- function(paramObj,param='gamma') {
@@ -397,14 +371,13 @@ makeBnds <- function(paramObj,param='gamma') {
     #extract from paramObj - yields a function of tau that sets a bound on feasible eta;
     #param allows one to switch the 'open' param (see paper) and this yields a different set of bounds.
 
-##
-## most of this can be direct ref to specProdList.
-##
-    gz.vw.gz <- paramObj$gz.vw.gz
-    gy.vw.gy <- paramObj$gy.vw.gy
+    # for convenience, extract these here:
+
+    gz.vw.gz <- paramObj$bndProdList$gz.vw.gz
+    gy.vw.gy <- paramObj$bndProdList$gy.vw.gy
     c.b.y <- paramObj$sds.y.ucm$sd.alpha.y.ucm
-    bz.vx.bz <- paramObj$bz.vx.bz
-    by.vx.by <- paramObj$by.vx.by
+    bz.vx.bz <- paramObj$bndProdList$bz.vx.bz
+    by.vx.by <- paramObj$bndProdList$by.vx.by
     c.w.y <- paramObj$sds.y.ucm$sd.eps.y.ucm
     
     if (param=='gamma') {

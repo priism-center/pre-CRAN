@@ -70,7 +70,7 @@ for (ii in 1:length(cnames)) {
   #remove NAs:
   cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country) #should remove NAs
 
-  #set up indicator vars for factors:
+  #set up indicator vars for factors (preferred over +factor(type) as this would require more complicated re-use of data with commands like model.matrix:
   cdat$type0 <- 1*(cdat$type==0)
   cdat$type1 <- 1*(cdat$type==1)
   cdat$type2 <- 1*(cdat$type==2)
@@ -125,7 +125,7 @@ for (ii in 1:length(cnames)) {
   print(round(rsltTab1,2))
   print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
-  print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$gz.vw.gz)),3),collapse=", "),sep=" "))
+  print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),3),collapse=", "),sep=" "))
   ####################################
 
   
@@ -149,7 +149,7 @@ for (ii in 1:length(cnames)) {
   recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)  # corresponds to the bound when 'beta' (parm 3) is the open param.
   
   #there is a gamma corresp. to this beta
-  gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$by.vx.bz)),4]
+  gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$bndProdList$by.vx.bz)),4]
   
   #get other 'target' values:
   nu.at.zeta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,1])),paramIdx]
@@ -169,7 +169,7 @@ for (ii in 1:length(cnames)) {
   lcex <- 3
   pcex <- 2
   png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
-  tvals <- c(gamma.at.beta,pObj$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
+  tvals <- c(gamma.at.beta,pObj$bndProdList$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
   tpch <- c(0,4,1,3)
   taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
   confPts <- NULL #default
