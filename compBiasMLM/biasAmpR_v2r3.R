@@ -119,7 +119,6 @@ printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
   print(round(rsltTab1,digits=digits))
   print("ICCs for models:")
-  print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),digits=digits))
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),digits=digits))
   if (debug) print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),digits=digits),collapse=", "),sep=" "))
 }
@@ -531,13 +530,56 @@ correctedTau.o <- function(tau.o,zeta,delta,cW,cB) {
 }
 
 
+prePlotParams <- function(mdlFit,nGridPoints=201,tau.max=1,gpSize=Inf) {
+   ################################
+   # Bounds calcs 
+   # params needed for plots
+   # cond numb
+   ################################
+   # nGridPoints: number of points to build the confounder line.
+   # tau.max: abs(tau) used in the bounds calculation (plausible value supplied by user)
+   # gpSize: for balanced designs, the number of subjects/group.  For others, try geom. mean or Inf.
+   ################################
+  
+   #FIND THE RIGHT open Param from the gamma- or beta-based value for eta.
+   pObj <- extractParams(mdlFit)
+   # corresponds to the bound when gamma is the open param:
+   recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=nGridPoints,tau.max=tau.max, gpSize=gpSize) 
+   # beta-based equiv.:
+   recovParmsBetaBased <- recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=nGridPoints,tau.max=tau.max,gpSize=gpSize)
+   #get the gamma corresp. to this beta by searching through the list of evaluated points and finding closest corresponding.
+   #this is one of the target values to report
+   gammaYZ.at.beta <- recovParmsBetaBased$zetaDeltaMat[which.min(abs(recovParmsBetaBased$zetaDeltaMat[,"beta"]- pObj$bndProdList$by.vx.bz)),"gamma"]
+   #get other 'target' values:
+   gammaYZ.at.zeta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"zeta"])),"gamma"]
+   gammaYZ.at.delta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"delta"])),"gamma"]
+   gammaYZ.CS <- pObj$bndProdList$gy.vw.gz  #bound derived from C-S Ineq.
+   
+   #reduce range if info from Beta warrants it
+   nu.g.min <- min(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
+   nu.g.max <- max(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
+   #adjust range here
+   b.in.range <- recovParmsGammaBased$zetaDeltaMat[,"gamma"] >= nu.g.min & recovParmsGammaBased$zetaDeltaMat[,"gamma"] <= nu.g.max
+   recovParmsGammaBased$zetaDeltaMat <- recovParmsGammaBased$zetaDeltaMat[b.in.range,]
+   recovParmsGammaBased$parmRange <- recovParmsGammaBased$parmRange[b.in.range]
+   recovParmsGammaBased$plausible.taus <- recovParmsGammaBased$plausible.taus[b.in.range]
+   
+   bndVals <- c(gammaYZ.at.beta,gammaYZ.CS,gammaYZ.at.zeta.0,gammaYZ.at.delta.0)
+   names(bndVals) <- c("gYZbeta","gYZcs","gYZzeta","gYZdelta")
+   
+   list(zetaDeltaMat=recovParmsGammaBased$zetaDeltaMat,parmRange=recovParmsGammaBased$parmRange, 
+        plausible.taus=recovParmsGammaBased$plausible.taus, condNum=recovParmsGammaBased$condNum,bndVals=bndVals )
+}
+
+
+
 ##
 ## there are confPts, confPtsCol, and perhaps other params that we've deprecated.
-## clean code of that redundancy.
+## clean code of that redundancy - ONLY WHEN THE .R that also calls this has removed the sim code.
 ##
 
 ##ACTION: change size of labels in this plot... (is CEX= enough?)
-zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol=8,targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, autoAdjDelta=F, autoAdjProbs=c(.1,.9),zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,...) {
+zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol=8,targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, autoAdjDelta=F, autoAdjProbs=c(.1,.9),zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,debug=F,...) {
     #the function that plots "danger zones"
     #use targetVals to show where 'upper bd' might be or where eta wd be if we had unbiased Y eqn.
     #recale sd parms (y.w,y.b,z.w,z.b) defaults to no rescale.  O/w feed s.d.s based on '0' models for z,y(ucm)
@@ -621,10 +663,12 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
         corr.tau.o <- taus$ols - olsBias(zeta[locs],delta[locs],cW=cW,cB=cB)
         corr.tau.w <- taus$win - winBias(zeta[locs],cW=cW)
         tau.switch <- sign(olsMwin(zeta[locs],delta[locs],cW=cW,cB=cB))<=0
-        cat("Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):\n")
-        dstr <- cbind(zeta[locs],delta[locs],corr.tau.o,corr.tau.w,tau.switch)
-        dimnames(dstr) <- list(NULL,c("delta","zeta","OLS-based","Within-based","OLS-better?"))
-        print(round(dstr,2))
+        if (debug) {
+          cat("Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):\n")
+          dstr <- cbind(zeta[locs],delta[locs],corr.tau.o,corr.tau.w,tau.switch)
+          dimnames(dstr) <- list(NULL,c("delta","zeta","OLS-based","Within-based","OLS-better?"))
+          print(round(dstr,digits=2))
+        }
         tau.to.plot <-list(taus=cbind(corr.tau.o,corr.tau.w),offset=offset*(delta[2]-delta[1]),switch=tau.switch)
     } else {
         tau.to.plot <- NULL #for passing to levelplot pfunct

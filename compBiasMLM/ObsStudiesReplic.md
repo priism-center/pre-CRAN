@@ -55,50 +55,24 @@ Then run models, all in a loop one for each country selected.
       mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
       printResults(mdl.fit,cnames[ii],digits=2)
       
-      ## helper function for the condition number of matrix used in the model - call, print, and move on.
-      ## possible that we need some of the params generated here going forward.  Check.
-      ##
-      ################################
-      
-      #FIND THE RIGHT open Param from the gamma- or beta-based value for eta.
-      pObj <- extractParams(mdl.fit)
-      #for gamma-based:
-      recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=201,tau.max=1, gpSize=nPerSchool)  # corresponds to the bound when gamma is the open param.
-      cat("cond num (gamma based)=",recovParmsGammaBased$condNum,"\n")
-      #for beta-based
-      recovParmsBetaBased <- recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)
-      cat("cond num (beta based)=",recovParmsGammaBased$condNum,"\n")
 
-      #there is a gamma corresp. to this beta
-      gamma.at.beta <- recovParmsBetaBased$zetaDeltaMat[which.min(abs(recovParmsBetaBased$zetaDeltaMat[,"beta"]-pObj$bndProdList$by.vx.bz)),"gamma"]
-      
-      #get other 'target' values:
-      nu.at.zeta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"zeta"])),"gamma"]
-      nu.at.delta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"delta"])),"gamma"]
-      
-      #reduce range if info from Beta warrants it
-      nu.g.min <- min(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
-      nu.g.max <- max(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
-      #fix range here
-      b.in.range <- recovParmsGammaBased$zetaDeltaMat[,"gamma"] >= nu.g.min & recovParmsGammaBased$zetaDeltaMat[,"gamma"] <= nu.g.max
-      recovParmsGammaBased$zetaDeltaMat <- recovParmsGammaBased$zetaDeltaMat[b.in.range,]
-      recovParmsGammaBased$parmRange <- recovParmsGammaBased$parmRange[b.in.range]
-      recovParmsGammaBased$plausible.taus <- recovParmsGammaBased$plausible.taus[b.in.range]
 
+      # Bounds calcs -
+
+      ppParm <- prePlotParams(mdl.fit,nGridPoints=201,tau.max=1,gpSize=nPerSchool)
+      
+      #report stability of calcs used in the determination of confounding line
+      cat("condition number (for matrix used to identify line in confounding space):",round(ppParm$condNum,2))
 
       #plot params set for .png inlcuded in LaTeX file; adjust as nec.
       lcex <- 3
       pcex <- 2
       png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
-      tvals <- c(gamma.at.beta,pObj$bndProdList$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
       tpch <- c(0,4,1,3)
+      pObj <- extractParams(mdl.fit) # to get taus from two model fits.
       taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
-      confPts <- NULL #default
       
-      print("target for nu(by.vx.bz): ")
-      print(nu.at.zeta.0)
-      
-      plot(zdPlot(recovParmsGammaBased$zetaDeltaMat[,1],recovParmsGammaBased$zetaDeltaMat[,2],recovParmsGammaBased$parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
+      plot(zdPlot(ppParm$zetaDeltaMat[,"zeta"],ppParm$zetaDeltaMat[,"delta"],ppParm$parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol="darkslategrey",targetVals=ppParm$bndVals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
       dev.off()
     }
 
@@ -185,21 +159,10 @@ Then run models, all in a loop one for each country selected.
     ## tau1   0.08    0.52 0.15
     ## diff   0.12    0.00 0.14
     ## [1] "ICCs for models:"
-    ## [1] 0.81 0.19 0.19 0.78 0.14 0.15
     ##      [,1] [,2] [,3]
     ## [1,] 0.81 0.19 0.19
     ## [2,] 0.78 0.14 0.15
-    ## cond num (gamma based)= 136.4313 
-    ## cond num (beta based)= 136.4313 
-    ## [1] "target for nu(by.vx.bz): "
-    ##     gamma 
-    ## 0.0534951 
-    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
-    ##      delta zeta OLS-based Within-based OLS-better?
-    ## [1,] -0.18 0.18      0.14         0.30           1
-    ## [2,] -0.89 0.06      1.05         1.21           1
-    ## [3,]  0.00 0.21     -0.08         0.08           0
-    ## [4,] -1.22 0.00      1.48         1.65           1
+    ## condition number (for matrix used to identify line in confounding space): 136.43
 
     ## [1] "Intermediary Model Fits for:  sweden"
     ## [1] "Multilevel model fit:"
@@ -282,21 +245,10 @@ Then run models, all in a loop one for each country selected.
     ## tau1   0.08    0.28 0.09
     ## diff   0.06    0.12 0.07
     ## [1] "ICCs for models:"
-    ## [1] 0.93 0.08 0.08 0.91 0.04 0.04
     ##      [,1] [,2] [,3]
     ## [1,] 0.93 0.08 0.08
     ## [2,] 0.91 0.04 0.04
-    ## cond num (gamma based)= 382.5636 
-    ## cond num (beta based)= 382.5636 
-    ## [1] "target for nu(by.vx.bz): "
-    ##      gamma 
-    ## 0.02048167 
-    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
-    ##      delta zeta OLS-based Within-based OLS-better?
-    ## [1,] -0.23 0.01      0.33         0.33           1
-    ## [2,] -0.18 0.01      0.27         0.28           1
-    ## [3,]  0.00 0.02      0.07         0.08           0
-    ## [4,] -0.47 0.00      0.58         0.59           1
+    ## condition number (for matrix used to identify line in confounding space): 382.56
 
     ## [1] "Intermediary Model Fits for:  italy"
     ## [1] "Multilevel model fit:"
@@ -385,21 +337,10 @@ Then run models, all in a loop one for each country selected.
     ## tau1   0.06    0.11 0.08
     ## diff   0.06    0.23 0.14
     ## [1] "ICCs for models:"
-    ## [1] 0.75 0.28 0.27 0.74 0.22 0.23
     ##      [,1] [,2] [,3]
     ## [1,] 0.75 0.28 0.27
     ## [2,] 0.74 0.22 0.23
-    ## cond num (gamma based)= 80.14383 
-    ## cond num (beta based)= 80.14383 
-    ## [1] "target for nu(by.vx.bz): "
-    ##    gamma 
-    ## 0.111183 
-    ## Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):
-    ##      delta zeta OLS-based Within-based OLS-better?
-    ## [1,] -0.14 0.10      0.12         0.25           1
-    ## [2,] -0.36 0.04      0.42         0.55           1
-    ## [3,]  0.00 0.15     -0.07         0.06           0
-    ## [4,] -0.50 0.00      0.61         0.75           1
+    ## condition number (for matrix used to identify line in confounding space): 80.14
 
 Replicate Danger Zones Plots from Obs. Studies (2018) paper
 -----------------------------------------------------------
