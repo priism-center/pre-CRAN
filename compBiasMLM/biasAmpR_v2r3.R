@@ -103,6 +103,27 @@ buildFactorFormula <- function(dsn,factorName) {
   list(dsn=dsn,fmlaString=fmlaString)
 }
 
+printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
+  # helper function to give the output from the models
+  
+  #extract variance comps & some bias diffs
+  pObj <- extractParams(mdlFit)
+  #used in ObsStudies paper:
+  print(paste("Intermediary Model Fits for: ",mdlName))
+  print("Multilevel model fit:")
+  print(summary(mdl.fit$mlm1.y))
+  print("OLS regression model fit:")
+  print(summary(mdl.fit$ols1.y))
+  print(paste("Table 1 for: ",mdlName))
+  rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
+  dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
+  print(round(rsltTab1,digits=digits))
+  print("ICCs for models:")
+  print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),digits=digits))
+  print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),digits=digits))
+  if (debug) print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),digits=digits),collapse=", "),sep=" "))
+}
+
 
 processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
     

@@ -31,7 +31,7 @@ Then run models, all in a loop one for each country selected.
       country$type <- factor(country$type)
       
       #remove NAs:
-      cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country) #should remove NAs
+      cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country, na.action=na.omit) 
 
       #set up indicator vars for factors (preferred over +factor(type) as this would require more complicated re-use of data with commands like model.matrix:
       
@@ -42,72 +42,48 @@ Then run models, all in a loop one for each country selected.
 
       
       ## Prepare the formulas for the model fit calls.  
-      #indiv preds
+      #indiv-lwvel preds
       fmlaX <- ~sex + word_knowl + homework
-      #group var preds
+      #group-level preds (pop + type, but type is "separate indicators")
       fmlaW <- as.formula(paste("~pop",factForm$fmlaString,sep="",collapse=""))
-      #set treatment
+      #set treatment & outcome
       fmlaZ <- ~num_books
       fmlaY <- ~score
       ####################################
       
-      
       #fit models
       mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
-      
-      ## Make a helper function out of below that's a PRINT method, basically, taking mdl.fit as the main argument.
-      ##
-      ################################
-      #extract variance comps & some bias diffs
-      pObj <- extractParams(mdl.fit)
-      #for ObsStudies paper:
-      print(cnames[ii])
-      print(summary(mdl.fit$mlm1.y))
-      print(summary(mdl.fit$ols1.y))
-      print(paste("Table 1 for: ",cnames[ii]))
-      rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
-      dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
-      print(round(rsltTab1,2))
-      print(round(as.vector(t(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)))),2))
-      print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),2))
-      print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),3),collapse=", "),sep=" "))
-      ####################################
-
+      printResults(mdl.fit,cnames[ii],digits=2)
       
       ## helper function for the condition number of matrix used in the model - call, print, and move on.
       ## possible that we need some of the params generated here going forward.  Check.
       ##
       ################################
-      parms <- c("zeta","delta","beta","gamma")
-      paramIdx <- 4
-      paramCh <- parms[paramIdx]
       
-      rescaleParms <- c(1,1)
-      bnd.f <- makeBnds(pObj,param=paramCh)
+      #FIND THE RIGHT open Param from the gamma- or beta-based value for eta.
+      pObj <- extractParams(mdl.fit)
+      #for gamma-based:
+      recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=201,tau.max=1, gpSize=nPerSchool)  # corresponds to the bound when gamma is the open param.
+      cat("cond num (gamma based)=",recovParmsGammaBased$condNum,"\n")
+      #for beta-based
+      recovParmsBetaBased <- recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)
+      cat("cond num (beta based)=",recovParmsGammaBased$condNum,"\n")
 
-      recovParms4 <- recovParms <- recover(pObj,varyParm=paramCh,bnd.f,nParm=201,tau.max=1, gpSize=nPerSchool)  # corresponds to the bound when 'gamma' (parm 4) is the open param.
-
-      cat("cond num=",recovParms$condNum,"\n")
-      ####################################
-
-      #FIND THE RIGHT 4th Param from the 3rd param beta-based value for eta...
-      recovParms3<-recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=201,tau.max=1,gpSize=nPerSchool)  # corresponds to the bound when 'beta' (parm 3) is the open param.
-      
       #there is a gamma corresp. to this beta
-      gamma.at.beta <- recovParms3$zetaDeltaMat[which.min(abs(recovParms3$zetaDeltaMat[,3]-pObj$bndProdList$by.vx.bz)),4]
+      gamma.at.beta <- recovParmsBetaBased$zetaDeltaMat[which.min(abs(recovParmsBetaBased$zetaDeltaMat[,"beta"]-pObj$bndProdList$by.vx.bz)),"gamma"]
       
       #get other 'target' values:
-      nu.at.zeta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,1])),paramIdx]
-      nu.at.delta.0 <- recovParms$zetaDeltaMat[which.min(abs(recovParms$zetaDeltaMat[,2])),paramIdx]
+      nu.at.zeta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"zeta"])),"gamma"]
+      nu.at.delta.0 <- recovParmsGammaBased$zetaDeltaMat[which.min(abs(recovParmsGammaBased$zetaDeltaMat[,"delta"])),"gamma"]
       
       #reduce range if info from Beta warrants it
-      nu.g.min <- min(recovParms3$zetaDeltaMat[,4])
-      nu.g.max <- max(recovParms3$zetaDeltaMat[,4])
+      nu.g.min <- min(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
+      nu.g.max <- max(recovParmsBetaBased$zetaDeltaMat[,"gamma"])
       #fix range here
-      b.in.range <- recovParms4$zetaDeltaMat[,4] >= nu.g.min & recovParms4$zetaDeltaMat[,4] <= nu.g.max
-      recovParms$zetaDeltaMat <- recovParms$zetaDeltaMat[b.in.range,]
-      recovParms$parmRange <- recovParms$parmRange[b.in.range]
-      recovParms$plausible.taus <- recovParms$plausible.taus[b.in.range]
+      b.in.range <- recovParmsGammaBased$zetaDeltaMat[,"gamma"] >= nu.g.min & recovParmsGammaBased$zetaDeltaMat[,"gamma"] <= nu.g.max
+      recovParmsGammaBased$zetaDeltaMat <- recovParmsGammaBased$zetaDeltaMat[b.in.range,]
+      recovParmsGammaBased$parmRange <- recovParmsGammaBased$parmRange[b.in.range]
+      recovParmsGammaBased$plausible.taus <- recovParmsGammaBased$plausible.taus[b.in.range]
 
 
       #plot params set for .png inlcuded in LaTeX file; adjust as nec.
@@ -116,17 +92,18 @@ Then run models, all in a loop one for each country selected.
       png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
       tvals <- c(gamma.at.beta,pObj$bndProdList$gy.vw.gz,nu.at.zeta.0,nu.at.delta.0)
       tpch <- c(0,4,1,3)
-      taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])
+      taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
       confPts <- NULL #default
       
       print("target for nu(by.vx.bz): ")
       print(nu.at.zeta.0)
       
-      plot(zdPlot(recovParms$zetaDeltaMat[,1],recovParms$zetaDeltaMat[,2],recovParms$parmRange,rescaleParms=rescaleParms,confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
+      plot(zdPlot(recovParmsGammaBased$zetaDeltaMat[,1],recovParmsGammaBased$zetaDeltaMat[,2],recovParmsGammaBased$parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol="darkslategrey",targetVals=tvals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
       dev.off()
     }
 
-    ## [1] "scotland"
+    ## [1] "Intermediary Model Fits for:  scotland"
+    ## [1] "Multilevel model fit:"
     ## Linear mixed model fit by REML ['lmerMod']
     ## Formula: 
     ## score ~ num_books + num_books.mn + sex0 + word_knowl + homework +  
@@ -170,6 +147,7 @@ Then run models, all in a loop one for each country selected.
     ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
     ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
 
+    ## [1] "OLS regression model fit:"
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -206,12 +184,13 @@ Then run models, all in a loop one for each country selected.
     ## tau0   0.20    0.52 0.28
     ## tau1   0.08    0.52 0.15
     ## diff   0.12    0.00 0.14
+    ## [1] "ICCs for models:"
     ## [1] 0.81 0.19 0.19 0.78 0.14 0.15
     ##      [,1] [,2] [,3]
     ## [1,] 0.81 0.19 0.19
     ## [2,] 0.78 0.14 0.15
-    ## [1] "gy,vy,t.gz  0.104, 0.32, 0.413"
-    ## cond num= 136.4313 
+    ## cond num (gamma based)= 136.4313 
+    ## cond num (beta based)= 136.4313 
     ## [1] "target for nu(by.vx.bz): "
     ##     gamma 
     ## 0.0534951 
@@ -222,7 +201,8 @@ Then run models, all in a loop one for each country selected.
     ## [3,]  0.00 0.21     -0.08         0.08           0
     ## [4,] -1.22 0.00      1.48         1.65           1
 
-    ## [1] "sweden"
+    ## [1] "Intermediary Model Fits for:  sweden"
+    ## [1] "Multilevel model fit:"
     ## Linear mixed model fit by REML ['lmerMod']
     ## Formula: 
     ## score ~ num_books + num_books.mn + sex0 + word_knowl + homework +  
@@ -265,6 +245,7 @@ Then run models, all in a loop one for each country selected.
     ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
     ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
 
+    ## [1] "OLS regression model fit:"
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -300,12 +281,13 @@ Then run models, all in a loop one for each country selected.
     ## tau0   0.14    0.40 0.17
     ## tau1   0.08    0.28 0.09
     ## diff   0.06    0.12 0.07
+    ## [1] "ICCs for models:"
     ## [1] 0.93 0.08 0.08 0.91 0.04 0.04
     ##      [,1] [,2] [,3]
     ## [1,] 0.93 0.08 0.08
     ## [2,] 0.91 0.04 0.04
-    ## [1] "gy,vy,t.gz  0.203, 0.264, 0.389"
-    ## cond num= 382.5636 
+    ## cond num (gamma based)= 382.5636 
+    ## cond num (beta based)= 382.5636 
     ## [1] "target for nu(by.vx.bz): "
     ##      gamma 
     ## 0.02048167 
@@ -316,7 +298,8 @@ Then run models, all in a loop one for each country selected.
     ## [3,]  0.00 0.02      0.07         0.08           0
     ## [4,] -0.47 0.00      0.58         0.59           1
 
-    ## [1] "italy"
+    ## [1] "Intermediary Model Fits for:  italy"
+    ## [1] "Multilevel model fit:"
     ## Linear mixed model fit by REML ['lmerMod']
     ## Formula: 
     ## score ~ num_books + num_books.mn + sex0 + word_knowl + homework +  
@@ -362,6 +345,7 @@ Then run models, all in a loop one for each country selected.
     ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
     ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
 
+    ## [1] "OLS regression model fit:"
     ## 
     ## Call:
     ## lm(formula = formula(terms(Yfmla, data = cbind(Z, Xnew, W), allowDotAsName = T)), 
@@ -400,12 +384,13 @@ Then run models, all in a loop one for each country selected.
     ## tau0   0.12    0.33 0.22
     ## tau1   0.06    0.11 0.08
     ## diff   0.06    0.23 0.14
+    ## [1] "ICCs for models:"
     ## [1] 0.75 0.28 0.27 0.74 0.22 0.23
     ##      [,1] [,2] [,3]
     ## [1,] 0.75 0.28 0.27
     ## [2,] 0.74 0.22 0.23
-    ## [1] "gy,vy,t.gz  0.423, 0.681, 0.535"
-    ## cond num= 80.14383 
+    ## cond num (gamma based)= 80.14383 
+    ## cond num (beta based)= 80.14383 
     ## [1] "target for nu(by.vx.bz): "
     ##    gamma 
     ## 0.111183 
