@@ -573,20 +573,14 @@ prePlotParams <- function(mdlFit,nGridPoints=201,tau.max=1,gpSize=Inf) {
 
 
 
-##
-## there are confPts, confPtsCol, and perhaps other params that we've deprecated.
-## clean code of that redundancy - ONLY WHEN THE .R that also calls this has removed the sim code.
-##
-
 ##ACTION: change size of labels in this plot... (is CEX= enough?)
-zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confPtsCol=8,targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, autoAdjDelta=F, autoAdjProbs=c(.1,.9),zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,debug=F,...) {
+zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,debug=F,...) {
     #the function that plots "danger zones"
     #use targetVals to show where 'upper bd' might be or where eta wd be if we had unbiased Y eqn.
     #recale sd parms (y.w,y.b,z.w,z.b) defaults to no rescale.  O/w feed s.d.s based on '0' models for z,y(ucm)
     
-    pfunct = function(x, y, z,cols0,target,targetPch,confPts,confPtsCol,taus,cex,...) {
+    pfunct = function(x, y, z,cols0,target,targetPch,taus,cex,...) {
         panel.levelplot(x, y, z,...)
-        if (!is.null(confPts)) panel.points(x=confPts[,1],y=confPts[,2],pch='.',col=confPtsCol)
         panel.abline(h=0,col.line=1)
         panel.abline(v=0,col.line=1)
         panel.points(x=delta1,y=zeta1,pch=16,cex=1*cex,col.symbol=cols0)
@@ -603,26 +597,12 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
         }
     }
     
-    if (autoAdjZeta && !is.null(confPts)) {
-        qtl_5_95 <- quantile(confPts[,2],prob=autoAdjProbs,na.rm=T)
-        zeta <- seq(qtl_5_95[1],qtl_5_95[2],length=N)
-    } else {
-        zeta <- seq(min(zeta1),max(zeta1),length=N) #default
-    }
+    zeta <- seq(min(zeta1),max(zeta1),length=N) #default
     if (!is.null(zetaRange)) { #override everything
         zeta <- seq(zetaRange[1],zetaRange[2],length=N)
     }
     
-    ##
-    ## uses confPts - anything with bounds can be removed.
-    ##
-    
-    if (autoAdjDelta && !is.null(confPts)) {
-        qtl_5_95 <- quantile(confPts[,1],prob=autoAdjProbs,na.rm=T)
-        delta <- seq(qtl_5_95[1],qtl_5_95[2],length=N)
-    } else {
-        delta <- seq(min(delta1),max(delta1),length=N) #default
-    }
+    delta <- seq(min(delta1),max(delta1),length=N) #default
     if (!is.null(deltaRange)) { #override
         delta <- seq(deltaRange[1],deltaRange[2],length=N)
     }
@@ -676,7 +656,7 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
     df <- data.frame(x=rep(delta,N),y=rep(zeta,each=N),z=c(t(bdiff)))
     
     #alt version of cols0=grey(1-abs(parmRange)/max(abs(parmRange)))
-    levelplot(z~x*y,data=df,at=at.pts2,colorkey=list(at=at.pts,labels=list(at=at.pts,label=spec.lbl,cex=.75*cex)), panel=pfunct,row.values=delta,column.values=zeta,xlab=list(label=expression(delta^{yz}),cex=.85*cex),ylab=list(label=expression(zeta^{yz}),cex=.85*cex),zeta1=zeta1,delta1=delta1,cols0=8,target=targetPts,targetPch=targetPch,confPts=confPts,confPtsCol=confPtsCol,taus=tau.to.plot,cex=cex,scales=list(x=list(cex=.85*cex),y=list(cex=.85*cex),cex=cex),...)
+    levelplot(z~x*y,data=df,at=at.pts2,colorkey=list(at=at.pts,labels=list(at=at.pts,label=spec.lbl,cex=.75*cex)), panel=pfunct,row.values=delta,column.values=zeta,xlab=list(label=expression(delta^{yz}),cex=.85*cex),ylab=list(label=expression(zeta^{yz}),cex=.85*cex),zeta1=zeta1,delta1=delta1,cols0=8,target=targetPts,targetPch=targetPch,taus=tau.to.plot,cex=cex,scales=list(x=list(cex=.85*cex),y=list(cex=.85*cex),cex=cex),...)
 }
 
 
