@@ -71,37 +71,18 @@ for (ii in 1:length(cnames)) {
   cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country) #should remove NAs
 
   #set up indicator vars for factors (preferred over +factor(type) as this would require more complicated re-use of data with commands like model.matrix:
-  cdat$type0 <- 1*(cdat$type==0)
-  cdat$type1 <- 1*(cdat$type==1)
-  cdat$type2 <- 1*(cdat$type==2)
-  cdat$type3 <- 1*(cdat$type==3)
-  cdat$type4 <- 1*(cdat$type==4)
-  cdat$type5 <- 1*(cdat$type==5)
-  cdat$type6 <- 1*(cdat$type==6)
-  ##################################
   
-  nPerSchool <- mean(table(cdat$school))
-  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (sims suggest)
+  factForm <- buildFactorFormula(cdat,"type")
+  cdat <- factForm$dsn
+  
+  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (looking for a common denominator in the bias formulas with unbalanced design; geomean an approx. proxy)
 
   
-  ## Prepare the formulas for the model fit calls.  -- make a helper fnc.
-  ## 
-  ##################################
+  ## Prepare the formulas for the model fit calls.  
   #indiv preds
   fmlaX <- ~sex + word_knowl + homework
   #group var preds
-
-  fmlaW.str <- "~pop"
-  first <- TRUE # flag
-  for (i in 0:6) {# add only types with variation
-      tstr <- paste("type",as.character(i),collapse="",sep="")
-      len <- length(table(cdat[,tstr]))
-      if (len>1) {
-           if (!first) fmlaW.str <- paste(fmlaW.str,tstr,collapse="",sep="+")
-           first <- FALSE # ensures ref category
-      }
-  }
-  fmlaW <- as.formula(fmlaW.str)
+  fmlaW <- as.formula(paste("~pop",factForm$fmlaString,sep="",collapse=""))
   #set treatment
   fmlaZ <- ~num_books
   fmlaY <- ~score
@@ -195,16 +176,6 @@ lbd <- -4; ubd <- 4
 #set grid values
 zeta <- seq(lbd,ubd,length=N)
 delta <- seq(lbd,ubd,length=N)
-
-#functions that compute absolute bias differences for different estimators
-betMwin <- function(zeta,delta,cB=1,cW=1) {abs(delta/cB)-abs(zeta/cW)}
-olsMwin <- function(zeta,delta,cB=1,cW=1) {abs((zeta+delta)/(cW+cB))-abs(zeta/cW)}
-glsMwin <- function(zeta,delta,cB=1,cW=1,lambda=.5) {abs((zeta+lambda*delta)/(cW+lambda*cB))-abs(zeta/cW)}
-
-winBias <- function(zeta,delta,cB=1,cW=1) {zeta/cW}
-betBias <- function(zeta,delta,cB=1,cW=1) {delta/cB}
-olsBias <- function(zeta,delta,cB=1,cW=1) {(zeta+delta)/(cW+cB)}
-glsBias <- function(zeta,delta,cB=1,cW=1,lambda=.5) {(zeta+lambda*delta)/(cW+lambda*cB)}
 
 #choose the comparison here: betMwin or olsMwin or glsMwin
 #one can even plot abs bias for a single estimator, of course, as these are also defined above.

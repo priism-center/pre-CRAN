@@ -85,6 +85,25 @@ scaleAll <- function(x) {
 }
 
 
+buildFactorFormula <- function(dsn,factorName) {
+  
+  #take a factor variable and set up multiple indicator variables for it.
+  #build the piece of the formula that goes with it.
+  rawVar <- dsn[factorName]
+  lvls <- sort(names(table(rawVar)))
+  first <- TRUE # flag to ensure a ref. category
+  fmlaString <- NULL  #starting point
+  for (i in seq_along(lvls)) {
+    newVarName <- paste(factorName,lvls[i],sep="")
+    dsn[,newVarName] <- 1*(rawVar==as.numeric(lvls[i]))
+    if (!first) { 
+      fmlaString <- paste(fmlaString,newVarName,collapse="",sep="+")
+    } else first <- FALSE # ensures ref category
+  }
+  list(dsn=dsn,fmlaString=fmlaString)
+}
+
+
 processData <- function(X,Z,W,Wfmla,YZdata,id.old,id.new,center,stdz) {
     
     #group mean centering, stdzing, etc.  Everything you meed to do to put the data in form corresp. to the DGP as described in the ObsStudies paper
@@ -475,9 +494,16 @@ rescaleSetVal <- function(extParms) {
 
 
 #helper functs (mostly for zdPlot; useful in other contexts
-olsMwin <- function(zeta,delta,cW=cW,cB=cB) {abs((zeta+delta)/(cW+cB))-abs(zeta/cW)}
-olsBiasOnly <- function(zeta,delta,cW=cW,cB=cB) {(zeta+delta)/(cW+cB)}
-winBiasOnly <- function(zeta,cW=cW) {zeta/cW}
+
+#functions that compute asymptotic absolute bias differences for different estimators
+betMwin <- function(zeta,delta,cB=1,cW=1) {abs(delta/cB)-abs(zeta/cW)}
+olsMwin <- function(zeta,delta,cB=1,cW=1) {abs((zeta+delta)/(cW+cB))-abs(zeta/cW)}
+glsMwin <- function(zeta,delta,cB=1,cW=1,lambda=.5) {abs((zeta+lambda*delta)/(cW+lambda*cB))-abs(zeta/cW)}
+
+winBias <- function(zeta,delta,cB=1,cW=1) {zeta/cW}
+betBias <- function(zeta,delta,cB=1,cW=1) {delta/cB}
+olsBias <- function(zeta,delta,cB=1,cW=1) {(zeta+delta)/(cW+cB)}
+glsBias <- function(zeta,delta,cB=1,cW=1,lambda=.5) {(zeta+lambda*delta)/(cW+lambda*cB)}
 
 correctedTau.o <- function(tau.o,zeta,delta,cW,cB) {
   return(tau.o - olsBiasOnly(zeta,delta,cW,cB))
@@ -571,8 +597,8 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),confPts=NULL,confP
     targetPts <- matrix(cbind(delta1[locs],zeta1[locs]),nLocs,2,byrow=F) #byrow=F for when you pass more than one point...
     #here is where we get vals for plausible taus for the plot - evaluate at targetVals
     if (!is.null(taus)) { #these are ests. of tau based on zeta,delta
-        corr.tau.o <- taus$ols - olsBiasOnly(zeta[locs],delta[locs],cW=cW,cB=cB)
-        corr.tau.w <- taus$win - winBiasOnly(zeta[locs],cW=cW)
+        corr.tau.o <- taus$ols - olsBias(zeta[locs],delta[locs],cW=cW,cB=cB)
+        corr.tau.w <- taus$win - winBias(zeta[locs],cW=cW)
         tau.switch <- sign(olsMwin(zeta[locs],delta[locs],cW=cW,cB=cB))<=0
         cat("Bias-corrected (model-based) tau evaluated at specified points (least abs bias indicated on plot):\n")
         dstr <- cbind(zeta[locs],delta[locs],corr.tau.o,corr.tau.w,tau.switch)
@@ -598,8 +624,6 @@ lwDelete <- function(fmla,data) {
     options(opt0)
     data[bb,]
 }
-
-
 
 scaledColors <- function(x,colorScheme=cm.colors,nPerSide,rev=T) {
     
