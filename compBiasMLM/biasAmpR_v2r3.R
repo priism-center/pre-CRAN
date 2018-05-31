@@ -111,9 +111,9 @@ printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   #used in ObsStudies paper:
   print(paste("Intermediary Model Fits for: ",mdlName))
   print("Multilevel model fit:")
-  print(summary(mdl.fit$mlm1.y))
+  print(summary(mdl.fit$mlm1.y),corr=F)
   print("OLS regression model fit:")
-  print(summary(mdl.fit$ols1.y))
+  print(summary(mdl.fit$ols1.y),corr=F)
   print(paste("Table 1 for: ",mdlName))
   rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
   dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))

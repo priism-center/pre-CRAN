@@ -115,12 +115,6 @@ Then run models, all in a loop one for each country selected.
     ## type2          0.061497   0.037415    1.64
     ## type3         -0.016690   0.026658   -0.63
     ## type4          0.048688   0.027656    1.76
-
-    ## 
-    ## Correlation matrix not shown by default, as p = 14 > 12.
-    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
-    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
-
     ## [1] "OLS regression model fit:"
     ## 
     ## Call:
@@ -202,12 +196,6 @@ Then run models, all in a loop one for each country selected.
     ## type1          0.0179358  0.0366207   0.490
     ## type2          0.0003057  0.0415866   0.007
     ## type3         -0.0016143  0.0317164  -0.051
-
-    ## 
-    ## Correlation matrix not shown by default, as p = 13 > 12.
-    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
-    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
-
     ## [1] "OLS regression model fit:"
     ## 
     ## Call:
@@ -291,12 +279,6 @@ Then run models, all in a loop one for each country selected.
     ## type4          0.02678    0.04168   0.642
     ## type5         -0.02294    0.04090  -0.561
     ## type6          0.01339    0.04160   0.322
-
-    ## 
-    ## Correlation matrix not shown by default, as p = 16 > 12.
-    ## Use print(summary(mdl.fit$mlm1.y), correlation=TRUE)  or
-    ##   vcov(summary(mdl.fit$mlm1.y))   if you need it
-
     ## [1] "OLS regression model fit:"
     ## 
     ## Call:
