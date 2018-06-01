@@ -526,7 +526,7 @@ olsBias <- function(zeta,delta,cB=1,cW=1) {(zeta+delta)/(cW+cB)}
 glsBias <- function(zeta,delta,cB=1,cW=1,lambda=.5) {(zeta+lambda*delta)/(cW+lambda*cB)}
 
 correctedTau.o <- function(tau.o,zeta,delta,cW,cB) {
-  return(tau.o - olsBiasOnly(zeta,delta,cW,cB))
+  return(tau.o - olsBias(zeta,delta,cW,cB))
 }
 
 
