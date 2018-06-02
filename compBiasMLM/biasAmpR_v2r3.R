@@ -111,9 +111,9 @@ printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   #used in ObsStudies paper:
   print(paste("Intermediary Model Fits for: ",mdlName))
   print("Multilevel model fit:")
-  print(summary(mdl.fit$mlm1.y))
+  print(summary(mdl.fit$mlm1.y),corr=F)
   print("OLS regression model fit:")
-  print(summary(mdl.fit$ols1.y))
+  print(summary(mdl.fit$ols1.y),corr=F)
   print(paste("Table 1 for: ",mdlName))
   rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
   dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
@@ -223,7 +223,6 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     Zfmla.lmer <-as.formula(paste(Zname,"~.+(1|idNew)",sep=""))
     Zfmla1.lmer <-as.formula(paste(Zname,"~1+(1|idNew)",sep=""))
     YZdata <- data[,c(Yname,Zname,IDname)] #this will be useful in simpler models.
-    
     
     #design matrix/initial data processing
     X <- model.matrix(level1.pred,data)[,-1,drop=F] # first col is just 1s.
