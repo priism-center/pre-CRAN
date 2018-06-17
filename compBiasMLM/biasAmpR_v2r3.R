@@ -249,7 +249,7 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     #so matrix is [Y,Zctrd,Zmean,Xctrd,Xmean,W], where W are group const
     #assumes at least ONE X, potentially NO Ws...
  
- pd <- processData(X0,Z0,W0,Wfmla=level2.pred,YZdata0, IDname,idNew,center,stdz)  #results in a list data structure with most of the hard data manip accomplished
+    pd <- processData(X0,Z0,W0,Wfmla=level2.pred,YZdata0, IDname, idNew,center,stdz)  #results in a list data structure with most of the hard data manip accomplished
  #rename terms to make identification (by us) clearer as we fit models
     X<-pd$X
     Z<-pd$Z
@@ -264,7 +264,6 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
     YZdata <- pd$YZdata
     
     #fit models needed for parameters used in the paper:
-
     mlm0.y <- lmer(formula(terms(Yfmla.lmer,data=Znew,allowDotAsName=T)), data=as.data.frame(cbind(cbind(YZdata[,c(Yname,IDname)],Znew),idNew)))
     mlm1.y <- lmer(formula(terms(Yfmla.lmer,data=cbind(Znew,Xnew,W),allowDotAsName=T)), data=as.data.frame(cbind(cbind(YZdata[,c(Yname,IDname)],Znew,cbind(Xnew,W)),idNew)))
     mlm0.z <- lmer(Zfmla1.lmer,data=as.data.frame(cbind(YZdata,idNew)))
@@ -543,7 +542,7 @@ prePlotParams <- function(mdlFit,nGridPoints=201,tau.max=1,gpSize=Inf) {
    #FIND THE RIGHT open Param from the gamma- or beta-based value for eta.
    pObj <- extractParams(mdlFit)
    # corresponds to the bound when gamma is the open param:
-   recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=nGridPoints,tau.max=tau.max, gpSize=gpSize) 
+   recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=nGridPoints,tau.max=tau.max, gpSize=gpSize)
    # beta-based equiv.:
    recovParmsBetaBased <- recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=nGridPoints,tau.max=tau.max,gpSize=gpSize)
    #get the gamma corresp. to this beta by searching through the list of evaluated points and finding closest corresponding.

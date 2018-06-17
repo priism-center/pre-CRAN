@@ -37,7 +37,7 @@ Then run models, all in a loop one for each country selected.
       
       factForm <- buildFactorFormula(cdat,"type")
       cdat <- factForm$dsn
-      
+       
       nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (looking for a common denominator in the bias formulas with unbalanced design; geomean an approx. proxy)
 
       
@@ -54,8 +54,6 @@ Then run models, all in a loop one for each country selected.
       #fit models
       mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
       printResults(mdl.fit,cnames[ii],digits=2)
-      
-
 
       # Bounds calcs -
 
@@ -101,20 +99,20 @@ Then run models, all in a loop one for each country selected.
     ## 
     ## Fixed effects:
     ##                Estimate Std. Error t value
-    ## (Intercept)   -0.001821   0.027802   -0.07
-    ## num_books      0.077116   0.019656    3.92
-    ## num_books.mn   0.523222   0.065159    8.03
-    ## sex0           0.059338   0.017471    3.40
-    ## word_knowl     0.624077   0.018964   32.91
-    ## homework      -0.026672   0.017982   -1.48
-    ## sex0.mn        0.045266   0.097523    0.46
-    ## word_knowl.mn  0.132407   0.059534    2.22
-    ## homework.mn    0.005156   0.076896    0.07
-    ## pop            0.024711   0.026698    0.93
-    ## type1          0.047655   0.035129    1.36
-    ## type2          0.061497   0.037415    1.64
-    ## type3         -0.016690   0.026658   -0.63
-    ## type4          0.048688   0.027656    1.76
+    ## (Intercept)   -0.001821   0.027802  -0.066
+    ## num_books      0.077116   0.019656   3.923
+    ## num_books.mn   0.523222   0.065159   8.030
+    ## sex0           0.059338   0.017471   3.396
+    ## word_knowl     0.624077   0.018964  32.909
+    ## homework      -0.026672   0.017982  -1.483
+    ## sex0.mn        0.045266   0.097523   0.464
+    ## word_knowl.mn  0.132407   0.059534   2.224
+    ## homework.mn    0.005156   0.076896   0.067
+    ## pop            0.024711   0.026698   0.926
+    ## type1          0.047655   0.035129   1.357
+    ## type2          0.061497   0.037415   1.644
+    ## type3         -0.016690   0.026658  -0.626
+    ## type4          0.048688   0.027656   1.760
     ## [1] "OLS regression model fit:"
     ## 
     ## Call:
@@ -156,6 +154,16 @@ Then run models, all in a loop one for each country selected.
     ##      [,1] [,2] [,3]
     ## [1,] 0.81 0.19 0.19
     ## [2,] 0.78 0.14 0.15
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in recovParmsBetaBased$zetaDeltaMat[, "beta"] - pObj$bndProdList$by.vx.bz: Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
     ## condition number (for matrix used to identify line in confounding space): 136.43
 
     ## [1] "Intermediary Model Fits for:  sweden"
@@ -236,6 +244,16 @@ Then run models, all in a loop one for each country selected.
     ##      [,1] [,2] [,3]
     ## [1,] 0.93 0.08 0.08
     ## [2,] 0.91 0.04 0.04
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in recovParmsBetaBased$zetaDeltaMat[, "beta"] - pObj$bndProdList$by.vx.bz: Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
     ## condition number (for matrix used to identify line in confounding space): 382.56
 
     ## [1] "Intermediary Model Fits for:  italy"
@@ -322,6 +340,16 @@ Then run models, all in a loop one for each country selected.
     ##      [,1] [,2] [,3]
     ## [1,] 0.75 0.28 0.27
     ## [2,] 0.74 0.22 0.23
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in scaleFactor * bnd.f(tau.max): Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
+    ## Warning in recovParmsBetaBased$zetaDeltaMat[, "beta"] - pObj$bndProdList$by.vx.bz: Recycling array of length 1 in vector-array arithmetic is deprecated.
+    ##   Use c() or as.vector() instead.
+
     ## condition number (for matrix used to identify line in confounding space): 80.14
 
 Replicate Danger Zones Plots from Obs. Studies (2018) paper
