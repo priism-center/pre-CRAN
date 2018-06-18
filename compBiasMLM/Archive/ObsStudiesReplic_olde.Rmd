@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # W: Z.groupmean,X.groupmean,size of the school (25,26),type of community served (18)
 
 # depends:
-#  biasAmpR_V4R0.R
+#  biasAmpR_v2r3.R
 #
 # data source:
 #  IEA.RData (preprocessed dataset)
@@ -31,11 +31,9 @@ library(arm)
 library(lattice)
 
 #read support fns
-source("biasAmpR_V4R0.R")
-#get full set of schools data:
-load("ObsStudies_IEA.RData")
-source("readDataFnsV4R0.R")  #data-specific helper fns
-
+source("biasAmpR_v2r3.R")
+#read data
+if (!exists('scotland')) load("ObsStudies_IEA.RData")
 ```
 
 # run lmer and lm models
@@ -59,19 +57,44 @@ cnames <-c("scotland","sweden","italy")
 
 set.seed(12341)
 for (ii in 1:length(cnames)) {
+    
   country <- get(cnames[ii])
-  country$pop[country$pop<=0] <- NA  #can't use a school with 0 popn
-  dd <- makeCdat(score~num_books + factor(sex) + word_knowl + homework + factor(type) + log(pop), data=country, groupFmla=~school,stdz=T)
-  #core call to run the sensitivity analysis. 
-  mdl.fit<-runModels(outcome=dd$fmlaY, treatment=dd$fmlaZ, level1.pred = dd$fmlaX, level2.pred = dd$fmlaW, group = dd$group, data=dd$cdat)
 
-  # Print Results: 
-  printResults(mdl.fit,cnames[ii],digits=3)
+  #BETWEEN ##### could be a class to a 'helper' function called IEApreprocess that takes logs, removes NAs, etc.
+  ################################
+  country$pop <- log(country$pop)  #transform towards symmetry
+  country$pop[is.infinite(country$pop)] <- NA
   
-  # Plot Results: 
-  #first gather pre-plot info:
-  gpSize <- geoMeanGroupSize(dd$cdat$school)
-  ppParm <- prePlotParams(mdl.fit,nGridPoints=201,tau.max=1,gpSize=gpSize)
+  country$type <- factor(country$type)
+  
+  #remove NAs:
+  cdat <- model.frame(score~num_books + sex + word_knowl + homework + type + pop + school,data=country, na.action=na.omit) 
+
+  #set up indicator vars for factors (preferred over +factor(type) as this would require more complicated re-use of data with commands like model.matrix:
+  
+  factForm <- buildFactorFormula(cdat,"type")
+  cdat <- factForm$dsn
+   
+  nPerSchool <- prod(table(cdat$school))^(1/length(unique(cdat$school))) # use geo-mean (looking for a common denominator in the bias formulas with unbalanced design; geomean an approx. proxy)
+
+  
+  ## Prepare the formulas for the model fit calls.  
+  #indiv-lwvel preds
+  fmlaX <- ~sex + word_knowl + homework
+  #group-level preds (pop + type, but type is "separate indicators")
+  fmlaW <- as.formula(paste("~pop",factForm$fmlaString,sep="",collapse=""))
+  #set treatment & outcome
+  fmlaZ <- ~num_books
+  fmlaY <- ~score
+  ####################################
+  
+  #fit models
+  mdl.fit <- runModels(outcome=fmlaY, treatment=fmlaZ, level1.pred = fmlaX, level2.pred = fmlaW, group = ~school, data=cdat)
+  printResults(mdl.fit,cnames[ii],digits=2)
+
+  # Bounds calcs -
+
+  ppParm <- prePlotParams(mdl.fit,nGridPoints=201,tau.max=1,gpSize=nPerSchool)
   
   #report stability of calcs used in the determination of confounding line
   cat("condition number (for matrix used to identify line in confounding space):",round(ppParm$condNum,2))
