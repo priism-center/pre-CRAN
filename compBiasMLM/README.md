@@ -2,11 +2,7 @@ compBiasMLM code to be submitted to CRAN
 
 In RStudio environment, knit ObsStudiesReplic.Rmd 
 
-Older versions (with unnecessary and slower code) are:
-
-source("BA_reading.R") # should provide most tables and plots used in Observational Studies paper.
-
-source("biasAmpR_danger_plots.R") for plots needed for figure 1 in paper
+Older versions now archived.  
 
 Please cite:
 
