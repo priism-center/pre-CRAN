@@ -5,6 +5,8 @@ require(arm)
 require(foreign)
 require(plyr)
 library(reshape)
+library(MASS)
+library(cluster)
 
 
 #IMPLEMENTATION:
@@ -137,7 +139,9 @@ priorSample <- function(n,priorChoice=1L,seed=432101234,...) {
 }
 
 
-plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, tau.max=1, priorSampSize=20000, gpSize=Inf,seed=432101234,delta.plot.range=1, zeta.plot.range=1,offset=0,forceMax=NULL, refLine=T,refPoints=T) {
+plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, tau.max=1, 
+                        priorSampSize=20000, gpSize=Inf,seed=432101234, confEllipse=100,
+                        delta.plot.range=1, zeta.plot.range=1,offset=0,forceMax=NULL, refLine=T,refPoints=T) {
     
     plotParams <- prePlotParams(singleRun, nGridPoints=nGridPoints, tau.max=tau.max, gpSize=gpSize)
     par(mar=oldpar$mar+c(2,3,2,4),bg="grey98")
@@ -173,6 +177,16 @@ plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, 
         #the next line could have "null" cases as needs more error trapping.
         obsDeltaZetas <- rbind(cbind(deltaVals[deltaIdx],zetaVals[zetaIdx]),cbind(deltaVals[-deltaIdx],0))
         points(obsDeltaZetas,pch=5, col="green",cex=1.5,lwd=2.5)
+    }
+    if (confEllipse<100 & confEllipse>0) { #draw a conf. ellipse.
+      samples <- cbind(fit.sims$delta_yz,fit.sims$zeta_yz)
+      # Finding the confEllipse% highest density / minimum volume ellipse
+      fit <- cov.mve(samples, quantile.used = nrow(samples) * confEllipse / 100)
+      points_in_ellipse <- samples[fit$best, ]
+      ellipse_boundary <- predict(ellipsoidhull(points_in_ellipse))
+      # Plotting it
+      lines(ellipse_boundary, col="lightgreen", lwd=4)
+      #legend("topleft", paste0(confEllipse,"%"), col = "lightgreen", lty = 1, lwd = 2,bty='n')
     }
     
     colorbar.plot(dat$scale^2-.18-offset,dat$scale^2-offset,colSet$index,col=colSet$palette,adj.y=1,strip.width = 0.06,strip.length=6*(.06),horizontal=F)
