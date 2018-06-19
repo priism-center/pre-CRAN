@@ -502,7 +502,9 @@ olsMwin <- function(zeta,delta,cB=1,cW=1) {abs((zeta+delta)/(cW+cB))-abs(zeta/cW
 glsMwin <- function(zeta,delta,cB=1,cW=1,lambda=.5) {abs((zeta+lambda*delta)/(cW+lambda*cB))-abs(zeta/cW)}
 
 winBias <- function(zeta,delta,cB=1,cW=1) {zeta/cW}
-betBias <- function(zeta,delta,cB=1,cW=1) {delta/cB}
+betBias <- function(zeta,delta,cB=1,cW=1,gpSize=Inf) {
+    delta/(cW/gpSize+cB)  #relies on 1/Inf == 0    
+}
 olsBias <- function(zeta,delta,cB=1,cW=1) {(zeta+delta)/(cW+cB)}
 glsBias <- function(zeta,delta,cB=1,cW=1,lambda=.5) {(zeta+lambda*delta)/(cW+lambda*cB)}
 
@@ -560,6 +562,7 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),ta
     #the function that plots "danger zones"
     #use targetVals to show where 'upper bd' might be or where eta wd be if we had unbiased Y eqn.
     #recale sd parms (y.w,y.b,z.w,z.b) defaults to no rescale.  O/w feed s.d.s based on '0' models for z,y(ucm)
+    #NOTE: since between ests aren't used in the plots, the gpSize is never used by this function and so is not a param.
     
     pfunct = function(x, y, z,cols0,target,targetPch,taus,cex,...) {
         panel.levelplot(x, y, z,...)
