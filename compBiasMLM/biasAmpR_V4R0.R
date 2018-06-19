@@ -37,12 +37,10 @@ library(reshape)
 #    group = ~id
 #    data: the dataframe
 
-#NOTE: any use of varZ is likely to be wrong b/c most 'z' in this is centered.  It doesn't matter b/c we never seem to use varZ.
-#      keep in mind if varZ ever emerges as useful.
-
 #helper fnc:
 rm.na <- function(x) x[!is.na(x)]
 
+#some of the next 3 functions return lists with one object.  This is due to prior need for returning multiple objs and the desire not to recode everything that depends on them.  Returned objs could be simplified if dependencies handled.
 lmExtract <- function(lmObject,treatName) {
     #extract tau (coef) corresponding to treatment Z & s.e.(tau)
     # based only on 'treatName' entry
@@ -165,11 +163,10 @@ plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, 
         points(plotParams[[1]][,2],plotParams[[1]][,1],pch=19,cex=.4,col="salmon")
     }
     
-    if (refPts) {  #these are the line segs we want...
-
+    if (refPts) {  #these are the ref pts we want...
         xNames <- dimnames(dat$x)[[2]]
         wNames <- dimnames(dat$w)[[2]]
-        deltaIdx <-  grep(".mn",wNames,fixed=TRUE) #this should yield last few preds.
+        deltaIdx <-  grep(".mn",wNames,fixed=TRUE) #this should yield preds introduced by us.  If there is an X lacking between group variation, we don't handle it well at all.
         zetaIdx <- 1:length(xNames)
         zetaVals <- apply(fit.sims$b_y_x*fit.sims$b_z_x,2,mean)  #within
         deltaVals <- apply(fit.sims$b_y_w*fit.sims$b_z_w,2,mean)  #between
@@ -358,10 +355,8 @@ extractParams <- function(runModelRslt) {
     
      extr <- lmExtract(runModelRslt$ols0.y,treatConstrName)
      tau0.ols <- extr$tau
-     se.tau0.ols <- extr$se.tau
      extr <- lmExtract(runModelRslt$ols1.y,treatConstrName)
      tau1.ols <- extr$tau
-     se.tau1.ols <- extr$se.tau
      #
      ols.bias.diff <- tau0.ols - tau1.ols
      
@@ -384,12 +379,13 @@ extractParams <- function(runModelRslt) {
      ucm.vc <- lmeExtract.varcomp(runModelRslt$mlm.ucm.y)
      sd.alpha.y.ucm <- sqrt(ucm.vc$vcomps[1])
      sd.eps.y.ucm <- sqrt(ucm.vc$vcomps[2])
-     list(sds.y.ucm=list(sd.eps.y.ucm=sd.eps.y.ucm,sd.alpha.y.ucm=sd.alpha.y.ucm),
-          sigma.sq.between.y.0=sigma.sq.between.y.0,sigs=sigs, 
-          bias.diffs=c(within.bias.diff,between.bias.diff,ols.bias.diff),
-          tau.w=c(tau0.w,tau1.w),tau.b=c(tau0.b,tau1.b),
-          tau.ols=c(tau0.ols,tau1.ols),
-          bndProdList=xprods$bndProdList,varY=varY,varZ=varZ,seOLS=c(se.tau0.ols, se.tau1.ols))
+    
+    list(sds.y.ucm=list(sd.eps.y.ucm=sd.eps.y.ucm, sd.alpha.y.ucm=sd.alpha.y.ucm),
+     sigma.sq.between.y.0=sigma.sq.between.y.0,sigs=sigs,
+     bias.diffs=c(within.bias.diff,between.bias.diff,ols.bias.diff),
+     tau.w=c(tau0.w,tau1.w),tau.b=c(tau0.b,tau1.b),
+     tau.ols=c(tau0.ols,tau1.ols),
+     bndProdList=xprods$bndProdList,varY=varY,varZ=varZ)
 }
 
 makeBnds <- function(paramObj,param='gamma') {
