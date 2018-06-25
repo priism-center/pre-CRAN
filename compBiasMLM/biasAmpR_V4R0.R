@@ -143,8 +143,7 @@ plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, 
                         priorSampSize=20000, gpSize=Inf,seed=432101234, confEllipse=100,
                         delta.plot.range=1, zeta.plot.range=1,offset=0,forceMax=NULL, refLine=T,refPoints=T) {
     
-    plotParams <- prePlotParams(singleRun, nGridPoints=nGridPoints, tau.max=tau.max, gpSize=gpSize)
-    par(mar=oldpar$mar+c(2,3,2,4),bg="grey98")
+    if (!is.null(singleRun)) plotParams <- prePlotParams(singleRun, nGridPoints=nGridPoints, tau.max=tau.max, gpSize=gpSize)
     
     samps <- priorSample(n=priorSampSize,priorChoice=priorChoice,seed=seed,zeta_sd=dat$zeta_sd, delta_sd=dat$delta_sd,zeta_lim=zeta_lim, delta_lim=delta_lim, a=dat$a,b=data$b,scale=dat$scale)
     
@@ -167,7 +166,7 @@ plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, 
         points(plotParams[[1]][,2],plotParams[[1]][,1],pch=19,cex=.4,col="salmon")
     }
     
-    if (refPts) {  #these are the ref pts we want...
+    if (refPoints) {  #these are the ref pts we want...
         xNames <- dimnames(dat$x)[[2]]
         wNames <- dimnames(dat$w)[[2]]
         deltaIdx <-  grep(".mn",wNames,fixed=TRUE) #this should yield preds introduced by us.  If there is an X lacking between group variation, we don't handle it well at all.
@@ -189,13 +188,13 @@ plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, 
       #legend("topleft", paste0(confEllipse,"%"), col = "lightgreen", lty = 1, lwd = 2,bty='n')
     }
     
-    colorbar.plot(dat$scale^2-.18-offset,dat$scale^2-offset,colSet$index,col=colSet$palette,adj.y=1,strip.width = 0.06,strip.length=6*(.06),horizontal=F)
+    colorbar.plot(delta.plot.range-.18-offset,zeta.plot.range-offset,colSet$index,col=colSet$palette,adj.y=1,strip.width = 0.06,strip.length=6*(.06),horizontal=F)
     len <- length(colSet$index)
     skipEvery <- 2
     ticks <- round(rev(colSet$ticks),1)
     frac <- 7.95*.06 #approx size of strip
     for(i in 1:len) {
-        if ((i-1)%%skipEvery==0) mtext(ticks[i],side=4,line=0.2,at=dat$scale^2-offset-0.14-frac*(i-1)/len,padj=1,las=1,outer=F,cex=1)
+        if ((i-1)%%skipEvery==0) mtext(ticks[i],side=4,line=0.2,at=delta.plot.range-offset-0.14-frac*(i-1)/len,padj=1,las=1,outer=F,cex=1)
     }
     mtext(expression(tau),side=3,line=+0.3,at=dat$scale^2-.18-offset,cex=1.75)
 }
@@ -222,11 +221,13 @@ prepDat <- function(outcome, treatment, level1.pred, level2.pred, group, data) {
   #among other things, forces id to be 1:M, not whatever it is in raw data.
   
   N <- dim(data)[1]
-  x <- as.array(model.matrix(level1.pred,data)[,-1]) # drop const
+  x <- as.array(model.matrix(level1.pred,data)[,-1, drop=F]) # drop const
   y <- data[,outcomeName]
   z.ctrd <- data[,treatName]
-  z.mn <- data[,paste0(treatName,".mn")]
-  w <- as.array(model.matrix(level2.pred,data)[,-1]) #drop const.
+  z.mn.name <- paste0(treatName,".mn")
+  dataNames <- names(data)
+  if (!is.na(match(z.mn.name,dataNames))) z.mn <- data[,z.mn.name] else z.mn <- 0 #should work for the special case of not using runModels to build dat0
+  w <- as.array(model.matrix(level2.pred,data)[,-1, drop=F]) #drop const.
   p <- dim(x)[2]
   q <- dim(w)[2]
   id <- renumber(data[,groupName])
