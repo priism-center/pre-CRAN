@@ -42,7 +42,7 @@ makeCdat <- function(fmla,data,groupFmla,cntrTreat=T, stdz=T,tol=1e-2) {
    dimnames(df.groupMeans)[[2]] <- c(groupName,groupVarNames)
    df.centeredVars <- cbind(cdat[,b.varWithinGroup],ids) #these will be centered
    df.X <- merge(df.centeredVars,df.groupMeans,by=groupName)
-   df.Worig <- cdat[,!b.varWithinGroup] #original group level vars
+   df.Worig <- cdat[,!b.varWithinGroup, drop=F] #original group level vars
    #hold out the response var (need to put back):
    respVar <- df.X[,respName]
    #hold out treatment var (in case need to put back):
