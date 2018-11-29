@@ -1,16 +1,16 @@
 # implement rhs, lhs locally if library: formula.tools not avail.
 
-# rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) } lhs <-
-# function(x) { strsplit(as.character(x),'~')[[1]][1] } modified funct to be less IEA specific...
+# rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) }
+# lhs <- function(x) { strsplit(as.character(x),'~')[[1]][1] } modified funct to be less IEA specific...
 
 makeCdat <- function(fmla, data, groupFmla, cntrTreat = T, stdz = T, tol = 0.01) {
-    
+
     # remove NAs & process the formula:
     groupName <- as.character(formula.tools::rhs(groupFmla))
     respName <- as.character(formula.tools::lhs(fmla))
     treatName <- attr(terms(fmla, response = F), "term.labels")[1]  # first predictor is treatment (standard approach)
     addResp <- as.formula(paste0("~.+", respName))
-    fmlaInclResp <- as.formula(paste0(paste0("~", strsplit(as.character(fmla), "~")[[1]][2]), "+", 
+    fmlaInclResp <- as.formula(paste0(paste0("~", strsplit(as.character(fmla), "~")[[1]][2]), "+",
         respName))  #add response to end of fmla to extract from df
     addGroup <- as.formula(paste0("~.+", groupName))
     fmlaAll <- update(fmla, addGroup)
@@ -18,9 +18,9 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = T, stdz = T, tol = 0.01)
     ids <- model.frame(groupFmla, data = cdat)
     cdat[, groupName] <- NULL  # drop from data.frame now, so that IDs don't get weird
     cdat <- as.data.frame(model.matrix(fmlaInclResp, cdat)[, -1])  #forces all named factors to be indicators, going fwd; drops intercept, as usual
-    
+
     # stdz first as scale is more obvious for eval'g tol (between var)
-    if (stdz) 
+    if (stdz)
         cdat <- as.data.frame(sapply(cdat, scaleAll))  #still use scaleAll as there may be lurking factors (not a problem if they can be treated as numeric values - e.g., sex 0/1).
     meanByGroup <- aggregate(cdat, by = list(ids[, 1]), mean)  # for CWC
     varByGroup <- aggregate(cdat, by = list(ids[, 1]), var)
@@ -58,16 +58,16 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = T, stdz = T, tol = 0.01)
     fmlaX <- as.formula(paste0("~", paste(XvarNames[-lenXvarNames], collapse = "+")))  #[-len..] drops outcome var
     # group-level preds (pop + type, but type is 'separate indicators')
     lenGroupVarNames <- length(groupVarNames)
-    WvarNames <- paste0(paste0("`", c(groupVarNames[-c(1, lenGroupVarNames)], dimnames(df.Worig)[[2]])), 
+    WvarNames <- paste0(paste0("`", c(groupVarNames[-c(1, lenGroupVarNames)], dimnames(df.Worig)[[2]])),
         "`")  # -c(1,len) to drop outcome and treatment.
     fmlaW <- as.formula(paste0("~", paste(WvarNames, collapse = "+")))  #same drop of treatment (mean) var
     # set treatment & outcome
     fmlaZ <- as.formula(paste0("~", treatName))
     fmlaZ.mn <- as.formula(paste0("~", groupVarNames[1]))  # rather than reconstruct the .mn suffix.
     fmlaY <- as.formula(paste0("~", respName))
-    
-    #################################### 
-    return(list(cdat = datNew, fmlaY = fmlaY, fmlaZ = fmlaZ, fmlaZ.mn = fmlaZ.mn, fmlaX = fmlaX, 
+
+    ####################################
+    return(list(cdat = datNew, fmlaY = fmlaY, fmlaZ = fmlaZ, fmlaZ.mn = fmlaZ.mn, fmlaX = fmlaX,
         fmlaW = fmlaW, group = groupFmla))
 }
 
