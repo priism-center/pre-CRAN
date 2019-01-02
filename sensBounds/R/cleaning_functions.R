@@ -1,8 +1,13 @@
+# Add function documentation
 
 
+#####
+# The following line comes before the cleaning function. It gets rid of schools with population of zero. Should this happen before saving the datasets? Raw dataset source and cleaning code can be documented in data-raw/ and included in .Rbuildignore as ^data-raw$ so it isn't included in the built package.
+
+#country$pop[country$pop<=0] <- NA  #can't use a school with 0 popn
 
 
-
+#####
 # implement rhs, lhs locally if library: formula.tools not avail.
 
 # rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) }
