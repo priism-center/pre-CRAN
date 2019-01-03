@@ -82,6 +82,14 @@ prepDat <- function(outcome, treatment, level1.pred, level2.pred, group, data) {
 }
 
 
+combine.formula <- function(fmla1,fmla2) {
+  #works on RHS formulas, e.g., ~x1+x2...
+  terms1 <- attr(terms.formula(fmla1),"term.labels")
+  terms2 <- attr(terms.formula(fmla2),"term.labels")
+  as.formula(paste0("~",paste(c(terms1,terms2),collapse="+")))
+}
+
+
 runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pred = ~W, group = ~id, data) {
 
   # all formula components are given using formula notation
@@ -158,21 +166,6 @@ printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),digits=digits))
   if (debug) print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),digits=digits),collapse=", "),sep=" "))
 }
-
-
-
-combine.formula <- function(fmla1,fmla2) {
-  #works on RHS formulas, e.g., ~x1+x2...
-  terms1 <- attr(terms.formula(fmla1),"term.labels")
-  terms2 <- attr(terms.formula(fmla2),"term.labels")
-  as.formula(paste0("~",paste(c(terms1,terms2),collapse="+")))
-}
-
-
-
-
-
-
 
 
 

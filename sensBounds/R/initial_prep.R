@@ -17,7 +17,7 @@
 # rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) }
 # lhs <- function(x) { strsplit(as.character(x),'~')[[1]][1] } modified funct to be less IEA specific...
 
-makeCdat <- function(fmla, data, groupFmla, cntrTreat = T, stdz = T, tol = 0.01) {
+makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol = 0.01) {
 
     # remove NAs & process the formula:
     groupName <- as.character(formula.tools::rhs(groupFmla))
