@@ -27,8 +27,6 @@ sensBounds <- function(
                        group = dd$group,
                        data = dd$cdat)
 
-  # Print Results:
-  printResults(mdl.fit, cnames[ii], digits = 3)
 
   # Plot Results:
   #first gather pre-plot info:
@@ -38,17 +36,49 @@ sensBounds <- function(
   #report stability of calcs used in the determination of confounding line
   cat("condition number (for matrix used to identify line in confounding space):",
       round(ppParm$condNum, 2))
+  # ADD WARNING HERE?
 
-  #plot params set for .png inlcuded in LaTeX file; adjust as nec.
+
+
+
+  return(list(model_fit = mdl.fit,
+              plot_parameters = ppParm,
+              model_name = data))
+
+}
+
+
+
+# Print Results:
+printResults(mdlFit = model_fit, mdlName = model_name, digits = 3, debug = FALSE)
+# From paper
+printResults(mdl.fit, cnames[ii], digits = 3)
+
+
+
+
+
+# Plot Results:
+
+#plot params set for .png inlcuded in LaTeX file; adjust as nec.
   lcex <- 3
   pcex <- 2
-  png(paste(cnames[ii],"png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
-  tpch <- c(0,4,1,3)
+  png(paste(data,"png", sep = ".", collapse = ""), width = pcex*480, height = pcex*480)
+  tpch <- c(0, 4, 1, 3)
   pObj <- extractParams(mdl.fit) # to get taus from two model fits.
-  taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
+  taus <- list(ols = pObj$tau.ols[2], win = pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
 
-  plot(zdPlot(ppParm$zetaDeltaMat[,"zeta"],ppParm$zetaDeltaMat[,"delta"],ppParm$parmRange,rescaleParms=c(1,1),targetVals=ppParm$bndVals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
+plot(zdPlot(ppParm$zetaDeltaMat[,"zeta"],
+                            ppParm$zetaDeltaMat[,"delta"],
+                            ppParm$parmRange,
+                            rescaleParms = c(1,1),
+                            targetVals = ppParm$bndVals,
+                            targetPch = tpch,
+                            taus = taus,
+                            cW = pObj$sigs[2,1],
+                            cB = pObj$sigs[2,2],
+                            cex = lcex))
   dev.off()
 
 
-}
+
