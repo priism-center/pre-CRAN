@@ -1,8 +1,8 @@
 # Add documentation
 
-# Plotting functions
 
 
+#---------HELPER FUNCTIONS-----------
 
 makeSpecProds <- function(level2.pred,fe_mlm1.z,fe_mlm1.y,varW,varX) {
   #helper function to extractParams to generate terms needed eventually for bounds
@@ -292,6 +292,10 @@ prePlotParams <- function(mdlFit,nGridPoints=201,tau.max=1,gpSize=Inf) {
 
 
 
+
+
+#---------MAIN FUNCTION---------
+
 ##ACTION: change size of labels in this plot... (is CEX= enough?)
 zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),targetPch=c(0),taus=NULL,offset=5,cW=sqrt(5),cB=sqrt(5),n.pts=9,N=201, autoAdjZeta=F, zetaRange=NULL,deltaRange=NULL,cex=1,zInflator=1,debug=F,...) {
   #the function that plots "danger zones"
@@ -380,7 +384,7 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),ta
 }
 
 
-#------- Where is this used? ---------
+#---------NOT USED?
 lwDelete <- function(fmla,data) {
   opt0 <- options()
   options(na.action="na.pass")
@@ -421,27 +425,6 @@ idealizedParms <- function(varX,varW,tau,betaY,betaZ,gammaY,gammaZ,zetaY,zetaZ,d
 }
 
 
-
-#helper for plots
-scaledColors <- function(x,colorScheme=cm.colors,nPerSide,forceMax=NULL,rev=T) {
-
-  #simplified version in which max value determines symmetric range
-  # or is overridden by forceMax.  the NAs that dropped colors in unused range was removed.
-  # See older versions to recover.
-
-  nCols <- 2*nPerSide+1
-  pal <- colorScheme(nCols)
-  if (rev) pal <- rev(pal) #colder colors are positive?
-  fact <- max(max(abs(x)),min(abs(x)))
-  if (!is.null(forceMax)) fact <- forceMax #override to make a common scale!
-  newx <- x/fact #still has a true zero  -- and one endpt has abs(newx)==1 when force==NULL
-  #top/bottom code if abs(newx)>1
-  fix.idx <- abs(newx)>1
-  newx[fix.idx] <- sign(newx)[fix.idx] #replace w/ +/- 1
-  idx <- round(1+nPerSide*(newx+1))
-  ticks <- seq(-fact,fact,length=nCols)
-  return(list(cols=pal[idx],ticks=ticks,palette=pal,index=1:nCols))
-}
 
 
 

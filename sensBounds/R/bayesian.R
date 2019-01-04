@@ -1,6 +1,6 @@
 # Bayesian-only functions
 
-
+#---------HELPER FUNCTIONS-----------
 
 #R function to mimic one prior in STAN.
 my_rbeta <-function(n,a,b,scale) {
@@ -37,7 +37,28 @@ priorSample <- function(n,priorChoice=1L,seed=432101234,...) {
 }
 
 
+#---------PLOTTING-----------
 
+#helper for plots
+scaledColors <- function(x,colorScheme=cm.colors,nPerSide,forceMax=NULL,rev=T) {
+
+  #simplified version in which max value determines symmetric range
+  # or is overridden by forceMax.  the NAs that dropped colors in unused range was removed.
+  # See older versions to recover.
+
+  nCols <- 2*nPerSide+1
+  pal <- colorScheme(nCols)
+  if (rev) pal <- rev(pal) #colder colors are positive?
+  fact <- max(max(abs(x)),min(abs(x)))
+  if (!is.null(forceMax)) fact <- forceMax #override to make a common scale!
+  newx <- x/fact #still has a true zero  -- and one endpt has abs(newx)==1 when force==NULL
+  #top/bottom code if abs(newx)>1
+  fix.idx <- abs(newx)>1
+  newx[fix.idx] <- sign(newx)[fix.idx] #replace w/ +/- 1
+  idx <- round(1+nPerSide*(newx+1))
+  ticks <- seq(-fact,fact,length=nCols)
+  return(list(cols=pal[idx],ticks=ticks,palette=pal,index=1:nCols))
+}
 
 plotResults <- function(singleRun,fit.sims,dat,priorChoice=1L, nGridPoints=401, tau.max=1,
                         priorSampSize=20000, gpSize=Inf,seed=432101234, confEllipse=100,

@@ -19,8 +19,7 @@
   \item{pop}{description}
 }}
 \source{
-\href{link}
-{Link to Source}
+\href{link}{Link to Source}
 }
 \usage{
 data(italy)

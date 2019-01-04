@@ -19,6 +19,5 @@
 #'   \item{pop}{description}
 #' }
 #' @keywords datasets
-#' @source \href{link}
-#' {Link to Source}
+#' @source \href{link}{Link to Source}
 "italy"

@@ -90,6 +90,8 @@ combine.formula <- function(fmla1,fmla2) {
 }
 
 
+#---------MAIN FUNCTION----------------
+
 runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pred = ~W, group = ~id, data) {
 
   # all formula components are given using formula notation
@@ -135,18 +137,11 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
 }
 
 
-#------- Where is this used? ---------
-rescaleSetVal <- function(extParms) {
-  #set values for rescaling based on fitted models
-  c(sqrt(extParms$varY),sqrt(extParms$varZ))
-}
+#---------PRINT RESULTS---------
 
+#' Print results
+#' @export
 
-
-
-
-
-#--------PRINT RESULTS---------
 printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   # helper function to give the output from the models
 
@@ -165,6 +160,17 @@ printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
   print("ICCs for models:")
   print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),digits=digits))
   if (debug) print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),digits=digits),collapse=", "),sep=" "))
+}
+
+
+
+
+
+
+#---------NOT USED?---------
+rescaleSetVal <- function(extParms) {
+  #set values for rescaling based on fitted models
+  c(sqrt(extParms$varY),sqrt(extParms$varZ))
 }
 
 
