@@ -2,6 +2,7 @@
 
 export(printResults)
 export(sensBounds)
+export(sensPlot)
 import(MASS)
 import(arm)
 import(cluster)

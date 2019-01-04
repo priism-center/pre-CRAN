@@ -53,32 +53,35 @@ sensBounds <- function(
 # printResults(mdlFit = model_fit, mdlName = model_name, digits = 3, debug = FALSE)
 # # From paper
 # printResults(mdl.fit, cnames[ii], digits = 3)
-#
-#
-#
-#
-#
-# # Plot Results:
-#
-# #plot params set for .png inlcuded in LaTeX file; adjust as nec.
-#   lcex <- 3
-#   pcex <- 2
-#   png(paste(data,"png", sep = ".", collapse = ""), width = pcex*480, height = pcex*480)
-#   tpch <- c(0, 4, 1, 3)
-#   pObj <- extractParams(mdl.fit) # to get taus from two model fits.
-#   taus <- list(ols = pObj$tau.ols[2], win = pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
-#
-# plot(zdPlot(ppParm$zetaDeltaMat[,"zeta"],
-#                             ppParm$zetaDeltaMat[,"delta"],
-#                             ppParm$parmRange,
-#                             rescaleParms = c(1,1),
-#                             targetVals = ppParm$bndVals,
-#                             targetPch = tpch,
-#                             taus = taus,
-#                             cW = pObj$sigs[2,1],
-#                             cB = pObj$sigs[2,2],
-#                             cex = lcex))
-#   dev.off()
-#
-#
-#
+
+
+
+
+
+# Plot Results:
+#' Plots the boundaries
+#' @export
+
+sensPlot <- function(sbobject, cex = 2) {
+  #plot params set for .png inlcuded in LaTeX file; adjust as nec.
+  lcex <- cex
+  tpch <- c(0, 4, 1, 3)
+  pObj <- extractParams(sbobject$model_fit) # to get taus from two model fits.
+  taus <- list(ols = pObj$tau.ols[2], win = pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
+
+  plot(zdPlot(sbobject$plot_parameters$zetaDeltaMat[,"zeta"],
+              sbobject$plot_parameters$zetaDeltaMat[,"delta"],
+              sbobject$plot_parameters$parmRange,
+              rescaleParms = c(1,1),
+              targetVals = sbobject$plot_parameters$bndVals,
+              targetPch = tpch,
+              taus = taus,
+              cW = pObj$sigs[2,1],
+              cB = pObj$sigs[2,2],
+              cex = lcex))
+}
+
+
+
+
+
