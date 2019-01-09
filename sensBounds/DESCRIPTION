@@ -13,7 +13,6 @@ RoxygenNote: 6.1.0
 Imports:
   formula.tools,
   lme4,
-  nlme,
   lattice,
   multcomp,
   arm,

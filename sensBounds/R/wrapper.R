@@ -1,9 +1,12 @@
-#' Function to get model fits and plotting parameters
-#' @export
+
 
 #country$pop[country$pop<=0] <- NA
 
-# Rename to something different than package name?
+#---------MAIN FUNCTION-------
+
+#' Function to get model fits and plotting parameters
+#' @export
+
 sensBounds <- function(
   formula = score ~ num_books + factor(sex) + word_knowl + homework + factor(type) + log(pop),
   grouplevel = ~school,
@@ -28,7 +31,7 @@ sensBounds <- function(
                        data = dd$cdat)
 
 
-  # Plot Results:
+  # Plot parameters:
   #first gather pre-plot info:
   gpSize <- geoMeanGroupSize(dd$cdat$school)
   ppParm <- prePlotParams(mdl.fit, nGridPoints = 201, tau.max = 1, gpSize = gpSize)
@@ -49,16 +52,37 @@ sensBounds <- function(
 
 
 
-# # Print Results:
-# printResults(mdlFit = model_fit, mdlName = model_name, digits = 3, debug = FALSE)
-# # From paper
-# printResults(mdl.fit, cnames[ii], digits = 3)
+#---------PRINT RESULTS---------
+
+#' Print results
+#' @export
+
+printResults <- function(mdlFit,mdlName,digits=3,debug=FALSE) {
+  # helper function to give the output from the models
+
+  #extract variance comps & some bias diffs
+  pObj <- extractParams(mdlFit)
+  #used in ObsStudies paper:
+  print(paste("Intermediary Model Fits for: ",mdlName))
+  print("Multilevel model fit:")
+  print(summary(mdlFit$mlm1.y))
+  print("OLS regression model fit:")
+  print(summary(mdlFit$ols1.y))
+  print(paste("Table 1 for: ",mdlName))
+  rsltTab1 <- rbind(cbind(pObj$tau.w,pObj$tau.b,pObj$tau.ols),pObj$bias.diffs)
+  dimnames(rsltTab1) <- list(c("tau0","tau1","diff"),c("Within","Between","OLS"))
+  print(round(rsltTab1,digits=digits))
+  print("ICCs for models:")
+  print(round(cbind(pObj$sigs,pObj$sigs[,2]/apply(pObj$sigs,1,sum)),digits=digits))
+  if (debug) print(paste("gy,vy,t.gz ",paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy,pObj$sds.y.ucm$sd.alpha.y.ucm^2,2^2*pObj$bndProdList$gz.vw.gz)),digits=digits),collapse=", "),sep=" "))
+}
 
 
 
 
 
-# Plot Results:
+#---------PLOT RESULTS---------
+
 #' Plots the boundaries
 #' @export
 
