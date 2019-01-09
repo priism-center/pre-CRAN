@@ -1,4 +1,7 @@
 # # Bayesian-only functions
+# # Required packages: cluster, MASS, possibly fields::colorbar.plot
+#
+#
 #
 # #---------HELPER FUNCTIONS-----------
 #

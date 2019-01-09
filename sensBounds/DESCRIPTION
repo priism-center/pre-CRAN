@@ -17,7 +17,5 @@ Imports:
   arm,
   foreign,
   plyr,
-  reshape,
-  MASS,
-  cluster
+  reshape
 

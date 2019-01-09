@@ -22,7 +22,7 @@ lmeExtract <- function(lmeObject,treatName,treatGpName) {
   #works on lmer obj
   #extract fixef of treatment (two forms - 2nd one is group mean)
   #fixef:
-  tau <- fixef(lmeObject)[c(treatName,treatGpName)]
+  tau <- lme4::fixef(lmeObject)[c(treatName,treatGpName)]
   #se
   list(tau=tau)
 }
@@ -32,7 +32,7 @@ lmeExtract.varcomp <- function(lmeObject) {
   #extract variances of random intercept model & ln(vcv) of those:
   #currently works on lmer only objects
   #variances:
-  vcomps <- c(as.numeric(VarCorr(lmeObject)[[1]]),sigma(lmeObject)^2)
+  vcomps <- c(as.numeric(lme4::VarCorr(lmeObject)[[1]]),sigma(lmeObject)^2)
   list(vcomps=vcomps)
 }
 
@@ -58,9 +58,9 @@ prepDat <- function(outcome, treatment, level1.pred, level2.pred, group, data) {
     #assume repeats, renumber to 1:length(unique(...))
     match(x, sort(unique(x)))
   }
-  groupName <- as.character(rhs(group))
-  outcomeName <- as.character(rhs(outcome))
-  treatName <- as.character(rhs(treatment))
+  groupName <- as.character(formula.tools::rhs(group))
+  outcomeName <- as.character(formula.tools::rhs(outcome))
+  treatName <- as.character(formula.tools::rhs(treatment))
 
   #among other things, forces id to be 1:M, not whatever it is in raw data.
 
@@ -102,9 +102,9 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
   IDname <- as.character(group)[2]
 
   #formula set up
-  Yname <- as.character(rhs(outcome))
-  Zname <- as.character(rhs(treatment))
-  IDname <- as.character(rhs(group))
+  Yname <- as.character(formula.tools::rhs(outcome))
+  Zname <- as.character(formula.tools::rhs(treatment))
+  IDname <- as.character(formula.tools::rhs(group))
   fmlaAll <- combine.formula(level1.pred,level2.pred)
   #for lm:
   Yfmla1.lm <- as.formula(paste0(Yname,fmlaAll,"+I(",Zname,"+",Zname,".mn)")) #Z should be uncentered
@@ -116,14 +116,14 @@ runModels <- function(outcome=~Y,treatment = ~Z, level1.pred = ~X1+X2, level2.pr
   Zfmla1.lmer <-as.formula(paste0("I(",Zname,"+",Zname,".mn)",fmlaAll,"+(1|",IDname,")")) #model 1
   Zfmla0.lmer <-as.formula(paste0("I(",Zname,"+",Zname,".mn)","~1+(1|",IDname,")")) #model 0
   #fit models needed for parameters used in the paper:
-  mlm0.y <- lmer(Yfmla0.lmer,data=data)
-  mlm1.y <- lmer(Yfmla1.lmer,data=data)
-  mlm0.z <- lmer(Zfmla0.lmer, data=data)
-  mlm1.z <- lmer(Zfmla1.lmer, data=data)
+  mlm0.y <- lme4::lmer(Yfmla0.lmer,data=data)
+  mlm1.y <- lme4::lmer(Yfmla1.lmer,data=data)
+  mlm0.z <- lme4::lmer(Zfmla0.lmer, data=data)
+  mlm1.z <- lme4::lmer(Zfmla1.lmer, data=data)
   #need the next run for bounds, but not for system of eqns.
   ols0.y <- lm(Yfmla0.lm,data=data)
   ols1.y <- lm(Yfmla1.lm,data=data)
-  mlm.ucm.y <- lmer(YfmlaUCM.lmer,data=data)
+  mlm.ucm.y <- lme4::lmer(YfmlaUCM.lmer,data=data)
 
   #even though it's not req'd to run stan after runModels, this is useful for stan call and a few variance calcs, so we do it here and pass the results forward.
   pDat <- prepDat(outcome, treatment, level1.pred, level2.pred, group, data)

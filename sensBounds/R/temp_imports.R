@@ -1,2 +1,2 @@
-#' @import lme4 lattice multcomp arm foreign plyr reshape MASS cluster
+#' @import lme4 lattice multcomp arm foreign plyr reshape
 NULL
