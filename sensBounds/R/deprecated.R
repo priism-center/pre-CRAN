@@ -1,3 +1,6 @@
+# # Unused packages: multcomp arm foreign reshape
+#
+#
 # #---------FROM model_fits---------
 # rescaleSetVal <- function(extParms) {
 #   #set values for rescaling based on fitted models
@@ -43,6 +46,6 @@
 #   sigs <- matrix(c(c_W0,c_W1,c_B0,c_B1),2,2,byrow=F)
 #   list(sigs=sigs,biasDiffs=c(winBias0-winBias1,betBias0-betBias1,olsBias0-olsBias1),winBias=c(winBias0,winBias1),betBias=c(betBias0,betBias1),olsBias=c(olsBias0,olsBias1), sd.y.ucm=c(sd.alpha.y.ucm,sd.eps.y.ucm))
 # }
-
-
-
+#
+#
+#

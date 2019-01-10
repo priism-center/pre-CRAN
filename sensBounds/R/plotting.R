@@ -1,5 +1,5 @@
 # Add documentation
-
+#' @importFrom plyr .
 
 
 #---------HELPER FUNCTIONS-----------
@@ -58,7 +58,7 @@ extractParams <- function(runModelRslt) {
   treatment <- runModelRslt$treatment
   outcome <- runModelRslt$outcome
   #get gamm.z'V(w)gamm.z from model 1 (for Z)
-  xprods <- makeSpecProds(level2.pred,fixef(runModelRslt$mlm1.z),fixef(runModelRslt$mlm1.y),runModelRslt$varW,runModelRslt$varX)
+  xprods <- makeSpecProds(level2.pred, lme4::fixef(runModelRslt$mlm1.z),lme4::fixef(runModelRslt$mlm1.y),runModelRslt$varW,runModelRslt$varX)
   varW <- xprods$varW #these are reordered to reflect proper variable ordering.
   varX <- xprods$varX
 
@@ -181,7 +181,7 @@ makeLinEqMat <- function(c_w0,c_w1,c_b0,c_b1,idx=4,gpSize=Inf) {
   m
 }
 
-recover <- function(paramObj,varyParm="gamma",bnd.f,nParms=201,tau.max=2,gpSize=Inf) {
+recover.n <- function(paramObj,varyParm="gamma",bnd.f,nParms=201,tau.max=2,gpSize=Inf) {
 
   #solves a system of equations for 3 out of 4 of (zeta_1, delta_1,byxbz,gywgz) in terms of the 4th, based on values for sigs and differences in bias for 3 estimation methods
   #sigs: 2x2 matrix rows are (c.w0,c.b0)
@@ -262,9 +262,9 @@ prePlotParams <- function(mdlFit,nGridPoints=201,tau.max=1,gpSize=Inf) {
   #FIND THE RIGHT open Param from the gamma- or beta-based value for eta.
   pObj <- extractParams(mdlFit)
   # corresponds to the bound when gamma is the open param:
-  recovParmsGammaBased <- recover(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=nGridPoints,tau.max=tau.max, gpSize=gpSize)
+  recovParmsGammaBased <- recover.n(pObj,varyParm="gamma",makeBnds(pObj,param="gamma"),nParm=nGridPoints,tau.max=tau.max, gpSize=gpSize)
   # beta-based equiv.:
-  recovParmsBetaBased <- recover(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=nGridPoints,tau.max=tau.max,gpSize=gpSize)
+  recovParmsBetaBased <- recover.n(pObj,varyParm="beta",makeBnds(pObj,param="beta"),nParm=nGridPoints,tau.max=tau.max,gpSize=gpSize)
   #get the gamma corresp. to this beta by searching through the list of evaluated points and finding closest corresponding.
   #this is one of the target values to report
   gammaYZ.at.beta <- recovParmsBetaBased$zetaDeltaMat[which.min(abs(recovParmsBetaBased$zetaDeltaMat[,"beta"]- as.numeric(pObj$bndProdList$by.vx.bz))),"gamma"]
@@ -304,18 +304,18 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),ta
   #NOTE: since between ests aren't used in the plots, the gpSize is never used by this function and so is not a param.
 
   pfunct = function(x, y, z,cols0,target,targetPch,taus,cex,...) {
-    panel.levelplot(x, y, z,...)
-    panel.abline(h=0,col.line=1)
-    panel.abline(v=0,col.line=1)
-    panel.points(x=delta1,y=zeta1,pch=16,cex=1*cex,col.symbol=cols0)
-    panel.points(x=target[,1],y=target[,2],pch=targetPch,lwd=3,cex=1.4*cex,col=1)
+    lattice::panel.levelplot(x, y, z,...)
+    lattice::panel.abline(h=0,col.line=1)
+    lattice::panel.abline(v=0,col.line=1)
+    lattice::panel.points(x=delta1,y=zeta1,pch=16,cex=1*cex,col.symbol=cols0)
+    lattice::panel.points(x=target[,1],y=target[,2],pch=targetPch,lwd=3,cex=1.4*cex,col=1)
     if (!is.null(taus)) {
       len <- length(taus$taus[,1])
       for (i in 1:len) {
         if (!is.na(taus$switch[i])) {
           if (taus$switch[i]) {
-            panel.text(x=target[i,1]+taus$offset,y=target[i,2],label=bquote(tilde(tau)[o] == .(round(taus$taus[,1],2)[i])),adj=0,cex=.75*cex)
-          } else panel.text(x=target[i,1]-taus$offset,y=target[i,2],label=bquote(tilde(tau)[w] == .(round(taus$taus[,2],2)[i])),adj=1,cex=.75*cex)
+            lattice::panel.text(x=target[i,1]+taus$offset,y=target[i,2],label=bquote(tilde(tau)[o] == .(round(taus$taus[,1],2)[i])),adj=0,cex=.75*cex)
+          } else lattice::panel.text(x=target[i,1]-taus$offset,y=target[i,2],label=bquote(tilde(tau)[w] == .(round(taus$taus[,2],2)[i])),adj=1,cex=.75*cex)
         }
       }
     }
@@ -380,7 +380,7 @@ zdPlot <- function(zeta1,delta1,parmRange,rescaleParms=c(1,1),targetVals=c(0),ta
   df <- data.frame(x=rep(delta,N),y=rep(zeta,each=N),z=c(t(bdiff)))
 
   #alt version of cols0=grey(1-abs(parmRange)/max(abs(parmRange)))
-  levelplot(z~x*y,data=df,at=at.pts2,colorkey=list(at=at.pts,labels=list(at=at.pts,label=spec.lbl,cex=.75*cex)), panel=pfunct,row.values=delta,column.values=zeta,xlab=list(label=expression(delta^{yz}),cex=.85*cex),ylab=list(label=expression(zeta^{yz}),cex=.85*cex),zeta1=zeta1,delta1=delta1,cols0=8,target=targetPts,targetPch=targetPch,taus=tau.to.plot,cex=cex,scales=list(x=list(cex=.85*cex),y=list(cex=.85*cex),cex=cex),...)
+  lattice::levelplot(z~x*y,data=df,at=at.pts2,colorkey=list(at=at.pts,labels=list(at=at.pts,label=spec.lbl,cex=.75*cex)), panel=pfunct,row.values=delta,column.values=zeta,xlab=list(label=expression(delta^{yz}),cex=.85*cex),ylab=list(label=expression(zeta^{yz}),cex=.85*cex),zeta1=zeta1,delta1=delta1,cols0=8,target=targetPts,targetPch=targetPch,taus=tau.to.plot,cex=cex,scales=list(x=list(cex=.85*cex),y=list(cex=.85*cex),cex=cex),...)
 }
 
 
