@@ -5,17 +5,17 @@
 # Add function documentation
 
 
-#####
-# The following line comes before the cleaning function. It gets rid of schools with population of zero. Should this happen before saving the datasets? Raw dataset source and cleaning code can be documented in data-raw/ and included in .Rbuildignore as ^data-raw$ so it isn't included in the built package.
+##### The following line comes before the cleaning function. It gets rid of schools with population of zero.
+##### Should this happen before saving the datasets? Raw dataset source and cleaning code can be documented in
+##### data-raw/ and included in .Rbuildignore as ^data-raw$ so it isn't included in the built package.
 
-#country$pop[country$pop<=0] <- NA  #can't use a school with 0 popn
+# country$pop[country$pop<=0] <- NA #can't use a school with 0 popn
 
 
-#####
-# implement rhs, lhs locally if library: formula.tools not avail.
+##### implement rhs, lhs locally if library: formula.tools not avail.
 
-# rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) }
-# lhs <- function(x) { strsplit(as.character(x),'~')[[1]][1] } modified funct to be less IEA specific...
+# rhs <- function(x) { as.formula(paste0('~',strsplit(as.character(x),'~')[[1]][2])) } lhs <- function(x) {
+# strsplit(as.character(x),'~')[[1]][1] } modified funct to be less IEA specific...
 
 makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol = 0.01) {
 
@@ -24,8 +24,7 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol =
     respName <- as.character(formula.tools::lhs(fmla))
     treatName <- attr(terms(fmla, response = F), "term.labels")[1]  # first predictor is treatment (standard approach)
     addResp <- as.formula(paste0("~.+", respName))
-    fmlaInclResp <- as.formula(paste0(paste0("~", strsplit(as.character(fmla), "~")[[1]][2]), "+",
-        respName))  #add response to end of fmla to extract from df
+    fmlaInclResp <- as.formula(paste0(paste0("~", strsplit(as.character(fmla), "~")[[1]][2]), "+", respName))  #add response to end of fmla to extract from df
     addGroup <- as.formula(paste0("~.+", groupName))
     fmlaAll <- update(fmla, addGroup)
     cdat <- model.frame(fmlaAll, data = data, na.action = na.omit)
@@ -39,8 +38,8 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol =
     meanByGroup <- aggregate(cdat, by = list(ids[, 1]), mean)  # for CWC
     varByGroup <- aggregate(cdat, by = list(ids[, 1]), var)
     b.varWithinGroup <- apply(varByGroup[, -1] > tol, 2, any, na.rm = T)  #these have at least some within variation.
-    # might need to trap condition of no variation within group anywhere, e.g. at this point, the
-    # treatment is first and the response is last in the df.  Exploit this structure.
+    # might need to trap condition of no variation within group anywhere, e.g. at this point, the treatment is
+    # first and the response is last in the df.  Exploit this structure.
     dimnames(meanByGroup)[[2]][1] <- groupName  # to faciliate merge.
     id.groupMeans <- meanByGroup[, 1]  #save these
     df.groupMeans <- meanByGroup[, -1][, b.varWithinGroup]  #only want those that vary (need to append .mn to name))  ## and need to drop id from this - it's first col.
@@ -65,15 +64,14 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol =
         df.X[, treatName] <- treatVar
     }
     datNew <- cbind(df.X, df.Worig)
-    ## Prepare the formulas for the model fit calls. indiv-level preds need to use `` due to factor
-    ## vars and logged vars...  should work, though clumsy
+    ## Prepare the formulas for the model fit calls. indiv-level preds need to use `` due to factor vars and
+    ## logged vars...  should work, though clumsy
     XvarNames <- paste0(paste0("`", ctrdVarNames[-1]), "`")  #[-1] drops treatment var
     lenXvarNames <- length(XvarNames)
     fmlaX <- as.formula(paste0("~", paste(XvarNames[-lenXvarNames], collapse = "+")))  #[-len..] drops outcome var
     # group-level preds (pop + type, but type is 'separate indicators')
     lenGroupVarNames <- length(groupVarNames)
-    WvarNames <- paste0(paste0("`", c(groupVarNames[-c(1, lenGroupVarNames)], dimnames(df.Worig)[[2]])),
-        "`")  # -c(1,len) to drop outcome and treatment.
+    WvarNames <- paste0(paste0("`", c(groupVarNames[-c(1, lenGroupVarNames)], dimnames(df.Worig)[[2]])), "`")  # -c(1,len) to drop outcome and treatment.
     fmlaW <- as.formula(paste0("~", paste(WvarNames, collapse = "+")))  #same drop of treatment (mean) var
     # set treatment & outcome
     fmlaZ <- as.formula(paste0("~", treatName))
@@ -81,7 +79,7 @@ makeCdat <- function(fmla, data, groupFmla, cntrTreat = TRUE, stdz = TRUE, tol =
     fmlaY <- as.formula(paste0("~", respName))
 
     ####################################
-    return(list(cdat = datNew, fmlaY = fmlaY, fmlaZ = fmlaZ, fmlaZ.mn = fmlaZ.mn, fmlaX = fmlaX,
-        fmlaW = fmlaW, group = groupFmla))
+    return(list(cdat = datNew, fmlaY = fmlaY, fmlaZ = fmlaZ, fmlaZ.mn = fmlaZ.mn, fmlaX = fmlaX, fmlaW = fmlaW,
+        group = groupFmla))
 }
 
