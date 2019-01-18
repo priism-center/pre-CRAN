@@ -6,7 +6,7 @@
 \usage{
 sensBounds(formula = score ~ num_books + factor(sex) + word_knowl +
   homework + factor(type) + log(pop), grouplevel = ~school,
-  data = italy, plot = TRUE)
+  data = italy, condition_max = 1000)
 }
 \description{
 Function to get model fits and plotting parameters

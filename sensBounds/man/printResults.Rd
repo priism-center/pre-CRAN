@@ -4,7 +4,7 @@
 \alias{printResults}
 \title{Print results}
 \usage{
-printResults(mdlFit, mdlName, digits = 3, debug = FALSE)
+printResults(sbobject, digits = 3, debug = FALSE)
 }
 \description{
 Print results
