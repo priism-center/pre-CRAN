@@ -24,9 +24,12 @@ sensBounds <- function(formula = score ~ num_books + factor(sex) + word_knowl + 
     ppParm <- prePlotParams(mdl.fit, nGridPoints = 201, tau.max = 1, gpSize = gpSize)
 
     # report stability of calcs used in the determination of confounding line
-    cat("condition number (for matrix used to identify line in confounding space):", round(ppParm$condNum,
-        2))
-    # ADD WARNING HERE?
+    cat("Condition number (for matrix used to identify line in confounding space):", round(ppParm$condNum,
+        2), "\n")
+    # Warning about high condition number
+    if (ppParm$condNum > condition_max) {
+      warning("Condition number exceeds maximum limit. Results may not be stable.")
+    }
 
 
 
@@ -74,6 +77,7 @@ printResults <- function(sbobject, digits = 3, debug = FALSE) {
 #' @export
 
 sensPlot <- function(sbobject, cex = 2) {
+  #lattice::lattice.options(default.theme = lattice::standard.theme(color = FALSE))
     # plot params set for .png inlcuded in LaTeX file; adjust as nec.
     lcex <- cex
     tpch <- c(0, 4, 1, 3)
