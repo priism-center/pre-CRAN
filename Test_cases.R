@@ -1,6 +1,6 @@
 #--------Read data and create new variables for testing-----------
 
-classroom <- read.csv("/Users/andrea/Documents/summer/Classroom_data_tests/classroom.csv")
+classroom <- read.csv("classroom.csv")
 
 ### Creation of different types of variables ###
 #check that every school has a sample
@@ -74,53 +74,36 @@ apply(classroom, 2, function(x) sum(is.na(x)))
 
 
 
-#---------Former setup--------
-
-
-
-set.seed(12341)
-#clean with makeCdat
-dd <- makeCdat(mathgain~ses + , data=classroom, groupFmla=~schoolid,stdz=T)
-
-#Stop to check formulas
-View(dd)
-
-
-
-#run models
-mdl.fit<-runModels(outcome=dd$fmlaY, treatment=dd$fmlaZ, level1.pred = dd$fmlaX, level2.pred = dd$fmlaW, group = dd$group, data=dd$cdat)
-
-# Print Results: 
-printResults(mdl.fit,"classroom data",digits=3)
-
-# Plot Results: 
-#first gather pre-plot info:
-gpSize <- geoMeanGroupSize(dd$cdat$schoolid)
-ppParm <- prePlotParams(mdl.fit,nGridPoints=201,tau.max=1,gpSize=gpSize)
-
-#report stability of calcs used in the determination of confounding line
-cat("condition number (for matrix used to identify line in confounding space):",round(ppParm$condNum,2))
-
-#plot params set for .png inlcuded in LaTeX file; adjust as nec.
-lcex <- 3
-pcex <- 2
-png(paste("classroom_data","png",sep=".",collapse=""),width=pcex*480,height=pcex*480)
-tpch <- c(0,4,1,3)
-pObj <- extractParams(mdl.fit) # to get taus from two model fits.
-taus <- list(ols=pObj$tau.ols[2],win=pObj$tau.w[2])  #index 2 catches the CWC version of treatment Z.
-
-plot(zdPlot(ppParm$zetaDeltaMat[,"zeta"],ppParm$zetaDeltaMat[,"delta"],ppParm$parmRange,rescaleParms=c(1,1),targetVals=ppParm$bndVals,targetPch=tpch,taus=taus,cW=pObj$sigs[2,1],cB=pObj$sigs[2,2],cex=lcex))
-dev.off()
-
-
-#----------New setup----------------
+#----------Test setup----------------
 
 # Run case
-test_case <- sensBounds(formula = test_formula, grouplevel = ~schoolid, data = classroom)
-printResults(sbobject = test_case, digits = 3, debug = FALSE)
-sensPlot(sbobject = test_case, cex = 2)
+test_case <- sensBounds(formula = test_formula, 
+                        grouplevel = ~schoolid, 
+                        data = classroom, 
+                        condition_max = 1000)
 
 # Checks
+# Formulas (part of sensBounds object)
+
+# ~'outcome var'
+test_case[["model_fit"]][["outcome"]]
+
+# ~'treatment var'
+test_case[["model_fit"]][["treatment"]]
+
+# ~'all group-level predictors (X.mn and W vars, with every level of factor vars except ref group)'
+test_case[["model_fit"]][["level2.pred"]]
+
+
+# Model outputs and ICCs from printResults
+printResults(sbobject = test_case, digits = 3, debug = FALSE)
+# check the model formulas correct?
+
+
+
+# Plot prints properly
+sensPlot(sbobject = test_case, cex = 2)
+
 
 
 #---------Test Cases---------
@@ -136,6 +119,8 @@ test_formula <- mathgain ~ ses + mathkind
 # 1 continuous X and 1 continous W
 test_formula <- mathgain ~ ses + mathkind + housepov
 
+
+### BROKEN ###
 # 0 X, 1 continuous W 
 test_formula <- mathgain ~ ses + housepov
 
@@ -183,7 +168,7 @@ test_formula <- mathgain ~ ses + mathkind + yearsfact.non
 
 # Continuous*continuous
 test_formula <- mathgain ~ ses + mathkind + mathkind:sex
-### WORKS ###
+### WORKS ### factor treated as continuous and multiplied beforehand
 test_formula <- mathgain ~ ses + mathkind + I(mathkind*sex)
 
 # Continuous*factor
@@ -195,9 +180,6 @@ test_formula <- mathgain ~ ses + mathkind + I(mathkind*sex.fact)
 # Factor*factor
 test_formula <- mathgain ~ ses + mathkind + factor(minority):factor(sex)
 test_formula <- mathgain ~ ses + mathkind + factor(minority)*factor(sex)
-
-
-
 
 
 

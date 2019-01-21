@@ -46,22 +46,36 @@ sensBounds <- function(formula = score ~ num_books + factor(sex) + word_knowl + 
 #' @export
 
 printResults <- function(sbobject, digits = 3, debug = FALSE) {
-    # helper function to give the output from the models
-
     # extract variance comps & some bias diffs
     pObj <- extractParams(sbobject$model_fit)
-    # used in ObsStudies paper:
-    print(paste("Intermediary Model Fits for: ", sbobject$model_name))
-    print("Multilevel model fit:")
+
+    # MLM Fit
+    cat("Intermediary Model Fits for", sbobject$model_name, "Data \n \n")
+    cat("Multilevel Model Fit \n")
     print(summary(sbobject$model_fit$mlm1.y))
-    print("OLS regression model fit:")
+
+    # OLS Fit
+    cat("\n")
+    cat("OLS Regression Model Fit")
     print(summary(sbobject$model_fit$ols1.y))
-    print(paste("Table 1 for: ", sbobject$model_name))
+
+    # Taus Table
+    cat("Table 1: Multilevel model-based estimates of treatment effect \n \n")
     rsltTab1 <- rbind(cbind(pObj$tau.w, pObj$tau.b, pObj$tau.ols), pObj$bias.diffs)
-    dimnames(rsltTab1) <- list(c("tau0", "tau1", "diff"), c("Within", "Between", "OLS"))
+    dimnames(rsltTab1) <- list(c("Tau (without predictors)",
+                                 "Tau (with predictors)",
+                                 "Difference (change in bias)"),
+                               c("Within", "Between", "OLS"))
     print(round(rsltTab1, digits = digits))
-    print("ICCs for models:")
-    print(round(cbind(pObj$sigs, pObj$sigs[, 2]/apply(pObj$sigs, 1, sum)), digits = digits))
+
+    # ICC Table
+    cat("\n")
+    cat("Table 2: Estimates of multilevel model-based within and between group-level variance components \n and intra-class correlation (ICC) of treatment \n \n")
+    rsltTab2 <- cbind(pObj$sigs, pObj$sigs[, 2]/apply(pObj$sigs, 1, sum))
+    dimnames(rsltTab2) <- list(c("Model without predictors",
+                                 "Model with predictors"),
+                               c("Within", "Between", "ICC"))
+    print(round(rsltTab2, digits = digits))
     if (debug)
         print(paste("gy,vy,t.gz ", paste(round(sqrt(c(pObj$bndProdList$gy.vw.gy, pObj$sds.y.ucm$sd.alpha.y.ucm^2,
             2^2 * pObj$bndProdList$gz.vw.gz)), digits = digits), collapse = ", "), sep = " "))
