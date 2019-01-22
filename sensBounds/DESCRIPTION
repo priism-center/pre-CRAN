@@ -14,5 +14,6 @@ Imports:
   formula.tools,
   lme4,
   lattice,
-  plyr
+  plyr,
+  grDevices
 

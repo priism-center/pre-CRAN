@@ -220,5 +220,10 @@ test_formula <- mathgain ~ ses + minority.gmc
 
 
 
+# Missing data
+
+
+# Log variables (appears okay from original data sets)
+
 
 

@@ -323,7 +323,7 @@ zdPlot <- function(zeta1, delta1, parmRange, rescaleParms = c(1, 1), targetVals 
         lattice::panel.levelplot(x, y, z, ...)
         lattice::panel.abline(h = 0, col.line = 1)
         lattice::panel.abline(v = 0, col.line = 1)
-        lattice::panel.points(x = delta1, y = zeta1, pch = 23, cex = 0.75 * cex, col.symbol = cols0)
+        lattice::panel.points(x = delta1, y = zeta1, pch = 16, cex = 0.75 * cex, col.symbol = cols0)
         lattice::panel.points(x = target[, 1], y = target[, 2], pch = targetPch, lwd = 3, cex = 1.4 * cex,
             col = 1)
         if (!is.null(taus)) {
@@ -403,12 +403,15 @@ zdPlot <- function(zeta1, delta1, parmRange, rescaleParms = c(1, 1), targetVals 
     df <- data.frame(x = rep(delta, N), y = rep(zeta, each = N), z = c(t(bdiff)))
 
     # alt version of cols0=grey(1-abs(parmRange)/max(abs(parmRange)))
-    lattice::levelplot(z ~ x * y, data = df, at = at.pts2, col.regions = colorRampPalette(brewer.pal(9, "Greys")), colorkey = list(at = at.pts, labels = list(at = at.pts,
+    # add argument to change colors:
+    # col.regions = grDevices::colorRampPalette(c("dark orange", "white", "dark blue"), space = "Lab")
+    # add grDevices to DESCRIPTION to use
+    lattice::levelplot(z ~ x * y, data = df, at = at.pts2, colorkey = list(at = at.pts, labels = list(at = at.pts,
         label = spec.lbl, cex = 0.75 * cex)), panel = pfunct, row.values = delta, column.values = zeta, xlab = list(label = expression(delta^{
         yz
     }), cex = 0.85 * cex), ylab = list(label = expression(zeta^{
         yz
-    }), cex = 0.85 * cex), zeta1 = zeta1, delta1 = delta1, cols0 = 2, target = targetPts, targetPch = targetPch,
+    }), cex = 0.85 * cex), zeta1 = zeta1, delta1 = delta1, cols0 = 8, target = targetPts, targetPch = targetPch,
         taus = tau.to.plot, cex = cex, scales = list(x = list(cex = 0.85 * cex), y = list(cex = 0.85 * cex),
             cex = cex), ...)
 }
